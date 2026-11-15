@@ -236,11 +236,11 @@ export default {
     for (const [si, s] of strands.entries()) {
       const line = []; for (let i = 0; i <= 20; i++) line.push(s.pts(s.a + (s.b - s.a) * i / 20));
       s.line = line;
-      const pl = polyline(line); const n = Math.max(4, Math.round(pl.length / 0.035));
+      const pl = polyline(line); const n = Math.max(5, Math.round(pl.length / 0.03));
       let seed = 97 + si * 31; const r = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
       for (let i = 0; i <= n; i++) {
         const u = s.a + (s.b - s.a) * i / n, p = s.pts(u);
-        for (let k = 0; k < 2; k++) globs.push({ p: p.clone().add(V((r() - 0.5) * 0.04, r() * 0.02, (r() - 0.5) * 0.04)), r: 0.026 + r() * 0.02, strand: si, scale: 1, cleared: false, rot: r() * 3 });
+        for (let k = 0; k < 2; k++) globs.push({ p: p.clone().add(V((r() - 0.5) * 0.04, r() * 0.02, (r() - 0.5) * 0.04)), r: 0.019 + r() * 0.014, strand: si, scale: 1, cleared: false, rot: r() * 3 });
       }
     }
     const fatMat = wet(0xe6c46a, 0.4, { emissive: 0x000000 });
@@ -249,7 +249,7 @@ export default {
     function writeGlobs() {
       globs.forEach((g, i) => {
         const k = Math.max(0.0001, g.scale);
-        _q.setFromEuler(_e.set(0, g.rot, 0)); _s.set(g.r * 1.25 * k, g.r * 0.6 * k, g.r * k);
+        _q.setFromEuler(_e.set(0, g.rot, 0)); _s.set(g.r * 1.3 * k, g.r * 0.55 * k, g.r * k);
         _m.compose(g.p, _q, _s); fatIM.setMatrixAt(i, _m);
       });
       fatIM.instanceMatrix.needsUpdate = true;
@@ -299,6 +299,7 @@ export default {
     const fulc = () => V(tgtL.x, PLANE, tgtL.z);
     const tipFromHand = (h) => { const c = fulc(); return V(clamp(c.x - (h.x - c.x) * K, -1.1, 1.1), PLANE, clamp(c.z - (h.z - c.z) * K, -1.0, 0.95)); };
     const handFor = (tp) => { const c = fulc(); return W(V(c.x - (tp.x - c.x) / K, PLANE, c.z - (tp.z - c.z) / K)); };
+    const settle = async (bot) => { for (let n = 0; n < 80 && camI >= 0 && camL.distanceTo(CAMS[camI].pos) + tgtL.distanceTo(CAMS[camI].tgt) > 0.004; n++) await bot.wait(0.05); };
     const dXZ = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
     const curveDist = (curve, pp, a = 0, b = 1) => { let best = Infinity, bt = 0; for (let i = 0; i <= 40; i++) { const t = a + (b - a) * i / 40; const d = dXZ(planeHit(curve.getPoint(t)), pp); if (d < best) { best = d; bt = t; } } return { d: best, t: bt }; };
 
@@ -446,7 +447,7 @@ export default {
               }
               return false;
             },
-            async bot(bot) { await pF.bot(bot); while (phase === 0) await bot.wait(0.05); await bot.wait(0.4); await pN.bot(bot); },
+            async bot(bot) { await settle(bot); await pF.bot(bot); while (phase === 0) await bot.wait(0.05); await bot.wait(0.4); await pN.bot(bot); },
           };
         },
       },
@@ -500,6 +501,7 @@ export default {
               return false;
             },
             async bot(bot) {
+              await settle(bot);
               for (const s of strands) {
                 const pts = s.line.map((p) => handFor(planeHit(p)));
                 await bot.moveTo(pts[0], 0.9); await bot.wait(0.15); bot.down(true);
@@ -565,6 +567,7 @@ export default {
               return false;
             },
             async bot(bot) {
+              await settle(bot);
               for (const t of targets) { await bot.moveTo(W(planeHit(t)), 0.7); await bot.wait(0.35); bot.down(true); await bot.wait(0.12); bot.down(false); await bot.wait(0.45); }
               await bot.wait(0.6);
               const p = W(planeHit(st.duct.getPoint(0.55)));
@@ -656,6 +659,7 @@ export default {
               return false;
             },
             async bot(bot) {
+              await settle(bot);
               for (const s of slots) { await bot.moveTo(handFor(planeHit(s.p)), 0.6); await bot.wait(0.2); bot.down(true); await bot.wait(0.55); bot.down(false); await bot.wait(0.15); }
               await bot.wait(0.3);
               for (const c of [st.duct, st.artery]) { await bot.moveTo(handFor(planeHit(c.getPoint(CUT))), 0.6); await bot.wait(0.3); bot.down(true); await bot.wait(0.15); bot.down(false); await bot.wait(0.3); }
@@ -736,6 +740,7 @@ export default {
               return false;
             },
             async bot(bot) {
+              await settle(bot);
               const pts = bed.map((p) => handFor(planeHit(p)));
               await bot.moveTo(pts[0], 0.8); await bot.wait(0.2); bot.down(true);
               const ext = pts[pts.length - 1].clone().add(pts[pts.length - 1].clone().sub(pts[pts.length - 2]).setLength(0.03));
