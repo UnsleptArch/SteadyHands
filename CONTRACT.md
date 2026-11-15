@@ -39,3 +39,19 @@ from repo root; open http://localhost:8400/. Pointer: mouse/trackpad (pointer lo
   recording script → MP4 (imageio-ffmpeg) following docs/pitch.md storyboard.
 Commit early and often (`git add <your files> && git commit`); never edit another agent's files — ask via a note in
 docs/NOTES.md instead (append-only, prefix with your role).
+
+## ADDENDUM 2:15 PM — FULL SURGERIES (user request): short procedures on a LOW-POLY DUMMY, no gore, incentive messages at the top
+- Mode "Surgeries" next to "Drills" on the title screen. Each surgery = a level (same interface as drills) made of 4–6 STEPS that
+  reuse the drill mechanics (incise along a guide, retract, locate/grasp with fulcrum control, clamp/ligate, cut, suture to close).
+- Surgeries (priority order): (1) 'appendectomy' (laparoscopic-style or open, stylized), (2) 'laceration' (simple wound repair on a
+  forearm: clean → anesthetize marker → suture ×3 → dress), (3) optional 'cholecystectomy-lite' if time.
+- LOW-POLY DUMMY: flat-shaded mannequin (CPR-dummy look, neutral grey/beige), surgical drape with a rectangular opening; inside,
+  stylized flat-colored organs (no blood, no realistic tissue). Vitals monitor prop (HR, BP, SpO2) beside the table.
+- INCENTIVE MESSAGES at the TOP of the screen (banner, minimal style): step instructions ("Step 2/5: Locate the appendix"),
+  praise/combo ("Clean cut! +150", "Perfect bite ×3"), warnings ("Careful — artery nearby", "Patient HR rising"), and a running
+  score + patient-stability bar. Vitals react: errors raise HR; steady work keeps them calm.
+- Ownership: ART adds `makeDummy()`, `makeDrapeWithWindow()`, `makeOrgan(kind)` (appendix, colon, gallbladder, liver – stylized),
+  `makeVitalsMonitor()` to src/art/index.js. SURGERY agent owns `src/surgeries/*` (procedures, step machine, banner overlay
+  `src/surgeries/banner.js` mounted by the surgery level itself, vitals logic) and implements `autoplay()` per surgery.
+  CORE wires the "Surgeries" cards into the title screen (it owns src/ui now) and registers level ids 'appendectomy', 'laceration'.
+- Timeline: dummy+organs 2:35 · appendectomy playable 2:55 · laceration 3:05 · freeze 3:10.
