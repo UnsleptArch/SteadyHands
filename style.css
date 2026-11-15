@@ -10,8 +10,8 @@ canvas{display:block}
 .sh-kicker{letter-spacing:.22em;font-size:14px;color:var(--accent);font-weight:600}
 h1{font-size:92px;letter-spacing:.06em;margin:10px 0 12px;font-weight:800;line-height:1}
 h2{margin:0;font-weight:700}h3{margin:0 0 10px;font-size:16px;color:var(--accent);font-weight:600;letter-spacing:.04em}
-.sh-why{font-size:24px;color:var(--mut);margin:0 0 44px}
-.sh-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-bottom:36px}
+.sh-why{font-size:24px;color:var(--mut);margin:0 0 32px}
+.sh-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-bottom:28px}
 .sh-card{all:unset;box-sizing:border-box;cursor:pointer;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:26px;display:flex;flex-direction:column;gap:8px;transition:border-color .15s,transform .15s}
 .sh-card:hover,.sh-card:focus-visible{border-color:var(--accent);transform:translateY(-3px)}
 .sh-card h2{font-size:34px}.sh-card p{margin:6px 0 12px;color:var(--mut);font-size:16px;line-height:1.45;flex:1}
@@ -74,3 +74,9 @@ kbd{font:600 13px Inter,sans-serif;border:1px solid var(--mut);border-radius:4px
 .sh-actions{display:flex;gap:12px;justify-content:flex-end}.sh-actions.col{flex-direction:column;justify-content:stretch;margin-top:20px}
 .sh-pause{background:rgba(6,10,12,.6)}
 @media(max-width:900px){.sh-cards,.sh-grid3,.sh-cols{grid-template-columns:1fr}h1{font-size:52px}}
+
+/* CORE: surgeries row + surgery mode (surgery levels mount their own top banner) */
+.sh-row-lbl{text-align:left;font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--mut);font-weight:600;margin:0 0 10px}
+.sh-cards.two{grid-template-columns:repeat(2,1fr)}
+.sh-card.surg h2{font-size:30px}
+.sh-ui.surgery .sh-top,.sh-ui.surgery .sh-prog{display:none}

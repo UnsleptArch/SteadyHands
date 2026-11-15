@@ -17,6 +17,20 @@ const FALLBACK_DRILLS = [
     scoring: 'Errors (vessel contacts), time and path length (economy of motion).' },
 ];
 const ORDER = ['incision', 'suture', 'lap'];
+const SURGERIES = [
+  { id: 'appendectomy', title: 'Appendectomy', skill: 'Full procedure, 5 steps', difficulty: 3, surgery: true,
+    brief: 'Remove an inflamed appendix on a training mannequin. Incise, locate, clamp, cut and close, using every skill from the drills.',
+    objective: 'Follow the step banner at the top. Keep the patient stable.',
+    controls: ['Mouse: move the instrument', 'Hold left click: act (cut, grasp, drive)', 'Hold SHIFT: steady breath', 'Esc: pause'],
+    scoring: 'Points per step, bonuses for clean work, penalties for errors that raise the patient\'s heart rate.' },
+  { id: 'laceration', title: 'Laceration Repair', skill: 'Wound closure, 4 steps', difficulty: 2, surgery: true,
+    brief: 'Repair a forearm cut on a training mannequin. Clean, anesthetize, place three sutures and dress the wound.',
+    objective: 'Follow the step banner at the top. Even, well-spaced sutures score best.',
+    controls: ['Mouse: move the instrument', 'Hold left click: act', 'Hold SHIFT: steady breath', 'Esc: pause'],
+    scoring: 'Points per step, suture spacing and accuracy, patient stability.' },
+];
+const SURG_ORDER = SURGERIES.map(x => x.id);
+const isSurgery = id => SURG_ORDER.includes(id);
 const GRADE_LABELS = { accuracy: 'Accuracy', precision: 'Precision', depth: 'Depth control', time: 'Time and motion', economy: 'Economy of motion',
   tissue: 'Tissue handling', safety: 'Safety', errors: 'Error avoidance', efficiency: 'Efficiency', control: 'Instrument control' };
 
@@ -43,7 +57,7 @@ export function createHUD(root, engine) {
   let current = null, paused = false, running = false, t0 = 0, tElapsed = 0, focus = 1, lastProg = { pct: 0, hint: '' }, live = {};
   let resultShown = false;
 
-  const meta = id => drills.find(d => d.id === id) || { id, title: id };
+  const meta = id => drills.find(d => d.id === id) || SURGERIES.find(d => d.id === id) || { id, title: (engine.levels?.[id]?.title) || id };
   Promise.all([loadJSON('drills.json', null), loadJSON('facts.json', []), loadJSON('osats.json', null)]).then(([d, f, o]) => {
     if (o && Array.isArray(o.items)) o.items.forEach(i => { GRADE_LABELS[i.id] = i.name; });
     if (Array.isArray(d) && d.length) {
@@ -69,6 +83,7 @@ export function createHUD(root, engine) {
         <div class="sh-kicker">A SURGICAL SKILLS TRAINER</div>
         <h1>STEADY HANDS</h1>
         <p class="sh-why">Surgeons rehearse these skills thousands of times before touching a patient.</p>
+        <div class="sh-row-lbl">Drills</div>
         <div class="sh-cards">${drills.map((d, i) => `
           <button class="sh-card" data-id="${d.id}">
             <div class="sh-card-top"><span class="sh-num">0${i + 1}</span>${stars(d.difficulty || i + 1)}</div>
@@ -76,6 +91,16 @@ export function createHUD(root, engine) {
             <div class="sh-skill">${esc(d.skill || '')}</div>
             <p>${esc(shortBrief(d.brief || ''))}</p>
             <span class="sh-go">Start drill</span>
+          </button>`).join('')}
+        </div>
+        <div class="sh-row-lbl">Full surgeries</div>
+        <div class="sh-cards two">${SURGERIES.map((d, i) => `
+          <button class="sh-card surg" data-id="${d.id}">
+            <div class="sh-card-top"><span class="sh-num">S${i + 1}</span>${stars(d.difficulty)}</div>
+            <h2>${esc(d.title)}</h2>
+            <div class="sh-skill">${esc(d.skill)}</div>
+            <p>${esc(d.brief)}</p>
+            <span class="sh-go">Start surgery</span>
           </button>`).join('')}
         </div>
         <button class="sh-btn ghost" data-act="how">How to play</button>
@@ -140,13 +165,14 @@ export function createHUD(root, engine) {
     $('shHint').textContent = ''; lastProg = { pct: 0, hint: '' }; live = {};
     focus = 1; t0 = performance.now(); tElapsed = 0; running = true; paused = false;
     show(hud);
+    ui.classList.toggle('surgery', isSurgery(id));
   }
   function toMenu() {
     running = false; paused = false; current = null;
     try { if (window.game?.menu) window.game.menu(); else engine.unloadLevel?.(); } catch (e) { console.warn(e); }
     show(title);
   }
-  function nextId() { const i = ORDER.indexOf(current); return ORDER[(i + 1) % ORDER.length]; }
+  function nextId() { const o = isSurgery(current) ? SURG_ORDER : ORDER; const i = o.indexOf(current); return o[(i + 1) % o.length]; }
 
   // ---------- results ----------
   function normGrade(g, metrics) {
@@ -230,6 +256,7 @@ export function createHUD(root, engine) {
   });
   ev.addEventListener('level:score', e => showResults(det(e)));
   ev.addEventListener('level:end', () => {});
+  ev.addEventListener('game:menu', () => { running = false; paused = false; current = null; ui.classList.remove('surgery'); show(title); });
 
   // ---------- frame loop ----------
   let last = performance.now();

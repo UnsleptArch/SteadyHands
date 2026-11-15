@@ -4,6 +4,8 @@ import { buildRoom, makeEnvironment } from './room.js';
 import { stubLevel } from './stub.js';
 
 export const LEVEL_IDS = ['incision', 'suture', 'lap'];
+export const SURGERY_IDS = ['appendectomy', 'laceration'];
+const levelPath = (id) => (SURGERY_IDS.includes(id) ? `../surgeries/${id}.js` : `../levels/${id}.js`);
 const DEFAULT_MM = 0.01; // ART convention: 1 unit = 10 cm
 
 // Smooth 1D noise: sum of incommensurate sines with random phases (cheap, deterministic per session).
@@ -118,7 +120,7 @@ export function createEngine(canvas, opts = {}) {
   const engine = {
     THREE, scene, camera, renderer, clock, input, events, art, room, raycaster,
     MM: DEFAULT_MM,
-    LEVEL_IDS,
+    LEVEL_IDS, SURGERY_IDS,
     levels: {},          // id -> level module (meta: id,title,brief) once loaded
     currentLevel: null,  // {id, title, module, controller}
     paused: false,
@@ -160,11 +162,11 @@ export function createEngine(canvas, opts = {}) {
     if (engine.levels[id]) return engine.levels[id];
     let mod;
     try {
-      mod = (await import(`../levels/${id}.js`)).default;
+      mod = (await import(levelPath(id))).default;
       if (!mod || typeof mod.setup !== 'function') throw new Error(`level ${id} has no setup()`);
     } catch (err) {
       console.warn(`[core] level "${id}" unavailable, using stub:`, err.message);
-      mod = stubLevel(id);
+      return stubLevel(id); // not cached: retried on next load
     }
     engine.levels[id] = mod;
     return mod;

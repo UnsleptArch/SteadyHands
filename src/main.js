@@ -28,6 +28,7 @@ async function boot() {
     ready: false,
     engine,
     levels: core.LEVEL_IDS.slice(),
+    surgeries: core.SURGERY_IDS.slice(),
     async start(id) {
       await engine.loadLevel(id);
       return game.state();
