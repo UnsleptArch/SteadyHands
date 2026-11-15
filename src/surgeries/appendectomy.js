@@ -160,6 +160,7 @@ export default {
             onChange(ts) {
               const t = Math.min(1, (ts[0] + ts[1]) / 2);
               setOpen(t);
+              if (organ) organ.visible = t > 0.25;
               if (incMech && t > 0.1) incMech.group.visible = false;
             },
           });
@@ -255,7 +256,6 @@ export default {
           const n = V(-tan.z, 0, tan.x).normalize();
           const pts = []; for (let i = 0; i <= 8; i++) pts.push(c.clone().addScaledVector(n, -0.17 + 0.34 * i / 8).setY(y));
           const m = traceGuide(S, { pts, y, tolMm: 5 });
-          m.toolYaw = Math.atan2(-n.x, -n.z) + Math.PI * 0.5;
           const inner = m.update;
           m.update = (ev, dt) => {
             const done = inner(ev, dt);
@@ -291,7 +291,7 @@ export default {
       const mat = flat(0xee9a90);
       const stumpPts = []; for (let i = 0; i <= 8; i++) stumpPts.push(apCurve.getPoint(0.3 * i / 8));
       const specPts = []; for (let i = 0; i <= 20; i++) specPts.push(apCurve.getPoint(0.34 + 0.66 * i / 20));
-      const r = 0.07 * (organ ? organ.scale.x / 0.75 : 1);
+      const r = organ ? 0.09 * organ.scale.x : 0.07;
       const stump = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(stumpPts), 12, r, 10), mat);
       const specGeo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(specPts), 30, r, 10);
       const mid = specPts[10].clone(); specGeo.translate(-mid.x, -mid.y, -mid.z);
@@ -315,6 +315,7 @@ export default {
     }
 
     setOpen(0);
+    if (organ) organ.visible = false; // revealed when the wound is retracted
     const controller = createSurgery({
       id: ID, engine, art, group, steps, monitor, parTime: 75,
       wideCam: { pos: [C.x + 3.2, 6.2, C.z + 7.2], target: [C.x - 1.0, 1.4, C.z] },

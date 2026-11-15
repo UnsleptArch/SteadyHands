@@ -8,6 +8,7 @@ import { createVitals } from './vitals.js';
 
 export const MM = 0.01;
 const TEAL = 0x3ec5b5;
+const TOOL_SCALE = { scalpel: 0.6, driver: 0.6, grasper: 0.8, syringe: 1 };
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
 // ------------------------------------------------------------------ grading
@@ -99,7 +100,7 @@ export function createSurgery(cfg) {
     if (tool) tool.visible = false;
     toolName = name; tool = null;
     if (!name) return;
-    if (!tools[name]) { tools[name] = makeTool(art, name); tools[name].rotation.order = 'YXZ'; group.add(tools[name]); }
+    if (!tools[name]) { tools[name] = makeTool(art, name); tools[name].rotation.order = 'YXZ'; tools[name].scale.multiplyScalar(TOOL_SCALE[name] || 1); group.add(tools[name]); }
     tool = tools[name]; tool.visible = true;
   }
 
@@ -222,7 +223,7 @@ export function createSurgery(cfg) {
         else {
           const lift = ev.down ? 0 : 0.03;
           tool.position.y += lift;
-          tool.rotation.set(-0.85, mech && mech.toolYaw !== undefined ? mech.toolYaw : 0.7, 0);
+          tool.rotation.set(-0.55, mech && mech.toolYaw !== undefined ? mech.toolYaw : 0.75, 0);
         }
         if (tool.setOpen) tool.setOpen(mech && mech.toolOpen !== undefined ? mech.toolOpen : (ev.down ? 0 : 0.5));
       }
@@ -276,7 +277,7 @@ export function traceGuide(S, { pts, y, tolMm = 4, onCut, onDone }) {
   const N = 40;
   for (let i = 0; i < N; i += 2) {
     const a = sampleAt(pl, (i / N) * L), b = sampleAt(pl, ((i + 1) / N) * L);
-    guide.seg(a, b, 0.008, 0.008, purple);
+    guide.seg(a, b, 0.013, 0.013, purple);
   }
   g.add(guide.mesh);
   const groove = new Ribbon(3000, y + 0.004, new THREE.MeshBasicMaterial({ vertexColors: true }));
@@ -290,7 +291,6 @@ export function traceGuide(S, { pts, y, tolMm = 4, onCut, onDone }) {
   const tip = new THREE.Vector3();
   const dir = pts[pts.length - 1].clone().sub(pts[0]);
   const mech = {
-    toolYaw: Math.atan2(-dir.x, -dir.z) + Math.PI * 0.5,
     frac: () => st.sMax / L,
     update(ev, dt) {
       tip.copy(ev.p).setY(y);
@@ -313,7 +313,7 @@ export function traceGuide(S, { pts, y, tolMm = 4, onCut, onDone }) {
       }
       if (st.cutting) {
         if (!st.last || tip.distanceTo(st.last) > 0.006) {
-          if (st.last) groove.seg(st.last, tip, 0.006, 0.006, dev > tolMm ? off : dark);
+          if (st.last) groove.seg(st.last, tip, 0.01, 0.01, dev > tolMm ? off : dark);
           st.last = (st.last || new THREE.Vector3()).copy(tip);
           if (onCut) onCut(tip);
         }
