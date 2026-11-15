@@ -336,6 +336,13 @@ export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const r1 = (v) => Math.round(v * 10) / 10;
 export const r2 = (v) => Math.round(v * 100) / 100;
 
+/** Hide the CORE room's meshes (keeps its lights); returns a restore function. */
+export function hideRoom(engine) {
+  const hidden = [];
+  if (engine.room && engine.room.group) engine.room.group.traverse((o) => { if (o.isMesh && o.visible) { o.visible = false; hidden.push(o); } });
+  return () => { for (const o of hidden) o.visible = true; };
+}
+
 // ---------------------------------------------------------------- patient surgical field
 /**
  * Builds the drill's work surface ON THE PATIENT: ART mannequin (true scale, x10) + drape with a window over the

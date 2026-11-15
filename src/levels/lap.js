@@ -3,7 +3,7 @@
 // (the fulcrum effect). Move the 3 beads from the left posts to the right posts without touching the red vessels.
 import * as THREE from 'three';
 import {
-  fromArt, setCamera, addLightsIfNeeded, disposeGroup, makeReporter, steadyOf, gradeDrill, runBot, clamp, r1, r2,
+  fromArt, makeDot, hideRoom, setCamera, addLightsIfNeeded, disposeGroup, makeReporter, steadyOf, gradeDrill, runBot, clamp, r1, r2,
 } from './_common.js';
 
 const ID = 'lap';
@@ -45,6 +45,7 @@ export default {
     group.name = 'level-lap';
     scene.add(group);
     addLightsIfNeeded(scene, group);
+    const restoreRoom = hideRoom(engine); // the box is a closed world; the OR table would z-fight its floor
     setCamera(engine, [0, 10.5, 17.5], [0, 0.4, -0.6]);
 
     // ---------- box ----------
@@ -125,6 +126,9 @@ export default {
       grasper.add(shaft);
     }
     group.add(grasper);
+    // soft contact shadow under the jaws: the depth cue laparoscopists rely on
+    const blob = makeDot(0.6, 0x000000, 0.03, 0.35);
+    group.add(blob);
 
     // red screen-edge flash (DOM overlay, owned by this level)
     const flashEl = document.createElement('div');
@@ -255,6 +259,8 @@ export default {
 
         // grasper pose: tip at `tip`, shaft through the port
         grasper.position.copy(tip);
+        blob.position.set(tip.x, 0.03, tip.z);
+        blob.material.opacity = 0.18 + 0.25 * clamp(1 - tip.y / 4, 0, 1);
         grasper.lookAt(port);
         if (grasper.setOpen) grasper.setOpen(down ? 0.05 : 0.8);
 
@@ -277,6 +283,7 @@ export default {
       metrics,
       dispose() {
         flashEl.remove();
+        restoreRoom();
         disposeGroup(group);
       },
       async autoplay() {
