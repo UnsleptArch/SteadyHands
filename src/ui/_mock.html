@@ -1,0 +1,11 @@
+<!doctype html><html><head><meta charset="utf-8"><title>HUD mock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../../style.css"></head><body><div id="ui"></div>
+<script type="module">
+import { createHUD } from './hud.js';
+const events = new EventTarget();
+const engine = { events, input:{steady:false}, loadLevel(id){ setTimeout(()=>{ events.dispatchEvent(new CustomEvent('level:start',{detail:{id}}));
+  let p=0; const t=setInterval(()=>{ p+=.04; events.dispatchEvent(new CustomEvent('level:progress',{detail:{id,pct:p,hint:'Keep the blade steady along the line',accuracy:.9}}));
+  if(p>=1){clearInterval(t);events.dispatchEvent(new CustomEvent('level:score',{detail:{id,metrics:{deviation_mm:1.23,time:24.6,accuracy:.91,errors:2},grade:{accuracy:4,depth:3,time:5,economy:4}}}));}},300);},0);} };
+window.hud = createHUD(document.getElementById('ui'), engine);
+</script></body></html>
