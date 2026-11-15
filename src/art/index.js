@@ -494,7 +494,7 @@ export function makeDrapeWithWindow(w = 6, h = 5, winW = 2.8, winH = 2.2) {
   const wallTex = canvasTex(512, 128, (c, W, H) => {
     const gr = c.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, '#c98e78'); gr.addColorStop(0.1, '#b9786a'); gr.addColorStop(0.16, '#d8b062'); gr.addColorStop(0.75, '#cf9f52'); gr.addColorStop(0.85, '#b9837a'); gr.addColorStop(1, '#8e4c48');
     c.fillStyle = gr; c.fillRect(0, 0, W, H); const r = rng(51);
-    for (let i = 0; i < 260; i++) { const x = r() * W, y = H * (0.18 + r() * 0.55), rr = 4 + r() * 9; c.fillStyle = r() > 0.5 ? 'rgba(240,206,120,0.35)' : 'rgba(170,120,50,0.25)'; c.beginPath(); c.ellipse(x, y, rr * 1.4, rr, 0, 0, 7); c.fill(); }
+    for (let i = 0; i < 260; i++) { const x = r() * W, y = H * (0.18 + r() * 0.55), rr = 4 + r() * 9; c.fillStyle = r() > 0.5 ? 'rgba(240,206,120,0.2)' : 'rgba(170,120,50,0.12)'; c.beginPath(); c.ellipse(x, y, rr * 1.4, rr, 0, 0, 7); c.fill(); }
   }, { repeat: [3, 1] });
   const ow = winW / 2, oh = winH / 2, outer = [[-ow, -oh], [ow, -oh], [ow, oh], [-ow, oh]], inner = [[-iw, -ih], [iw, -ih], [iw, ih], [-iw, ih]];
   const wp = [], wu = [], wi = []; let per = 0;
@@ -517,7 +517,7 @@ export function makeDrapeWithWindow(w = 6, h = 5, winW = 2.8, winH = 2.2) {
 export function prepSkinMaterial(w = 2.8, h = 2.2) { const k = 'prep' + w + 'x' + h; return mats[k] ||= makeSkinMaterial({ w, h, prep: true, repeat: 3 }); }
 
 function tubeAlong(pts, r, mat, seg = 6) { return new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(V3)), pts.length * 6, r, seg), mat); }
-const smooth = (color, extra = {}) => { const t = tissueDetail(); return new THREE.MeshStandardMaterial({ color, map: t.map, normalMap: t.normal, normalScale: new THREE.Vector2(0.35, 0.35), roughnessMap: t.rough, roughness: 1, metalness: 0, envMapIntensity: 0.9, ...extra, ...(extra.roughness !== undefined ? { roughness: Math.min(1, extra.roughness * 1.6) } : {}) }); };
+const smooth = (color, extra = {}) => { const t = tissueDetail(); return new THREE.MeshStandardMaterial({ color, map: t.map, normalMap: t.normal, normalScale: new THREE.Vector2(0.35, 0.35), roughnessMap: t.rough, roughness: 1, metalness: 0, envMapIntensity: 0.35, ...extra, ...(extra.roughness !== undefined ? { roughness: Math.min(1, extra.roughness * 1.6) } : {}) }); };
 const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 /** Haustrated colon segment along Z (z from z0 to z1) at axis height y, gentle lateral bend; with 3 taeniae coli and small epiploic fat appendages. */
 function colonSegment(z0, z1, y, x0 = 0, bendAmp = 0.08) {

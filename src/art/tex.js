@@ -106,13 +106,13 @@ export function tissueDetail() {
   const col = canvas(S, S), g = col.getContext('2d'), id = g.createImageData(S, S), d = id.data;
   const vr = fbmField(S, { seed: 47, base: 6, oct: 2, sx: 1, sy: 3 });
   for (let i = 0; i < S * S; i++) {
-    const t = 0.82 + v[i] * 0.3, vein = Math.max(0, 1 - Math.abs(vr[i] - 0.5) * 30) * 0.18; // faint serosal vessels
+    const t = 0.86 + v[i] * 0.22, vein = Math.max(0, 1 - Math.abs(vr[i] - 0.5) * 30) * 0.07; // faint serosal vessels
     d[i * 4] = Math.min(255, 255 * t * (1 - vein * 0.2)); d[i * 4 + 1] = 255 * t * (1 - vein); d[i * 4 + 2] = 255 * t * (1 - vein * 0.8); d[i * 4 + 3] = 255;
   }
   g.putImageData(id, 0, 0);
   const map = texFromCanvas(col, { srgb: true, repeat: [2, 2] });
   const normal = texFromCanvas(heightToNormalCanvas(h, S, 1.6), { srgb: false, repeat: [2, 2] });
-  const rough = texFromCanvas(grayCanvas(h, S, (x) => 0.18 + x * 0.35), { srgb: false, repeat: [2, 2] });
+  const rough = texFromCanvas(grayCanvas(h, S, (x) => 0.32 + x * 0.35), { srgb: false, repeat: [2, 2] });
   return (cache.tissue = { map, normal, rough });
 }
 
