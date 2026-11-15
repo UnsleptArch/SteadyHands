@@ -57,7 +57,7 @@ export function makeORLights(scene) {
   loadHDRI().then((t) => { if (scene.environment === env) scene.environment = t; }).catch((e) => console.warn('[art] HDRI load failed', e));
 
   // surgical light: one bright cool-white spot from above = the only shadow caster (soft pool with falloff)
-  const key = new THREE.SpotLight(0xf3f7ff, 120, 0, 0.5, 0.85, 1.7);
+  const key = new THREE.SpotLight(0xf3f7ff, 80, 0, 0.5, 0.85, 1.7);
   key.position.set(0.8, 10, 2.4);
   key.target.position.set(0, 0, 0);
   key.castShadow = true;
@@ -133,7 +133,7 @@ function skinCanvas(w, h, o = {}) {
     const mask = canvas(W, H), mg = mask.getContext('2d');
     const rx = W * 0.5, ry = H * 0.5;
     for (let i = 0; i < 110; i++) { // build an irregular soft-edged blob as the stain coverage
-      const a = r() * Math.PI * 2, rr = Math.sqrt(r()) * (o.prepCover ?? 0.92), x = W / 2 + Math.cos(a) * rr * rx, y = H / 2 + Math.sin(a) * rr * ry;
+      const a = r() * Math.PI * 2, rr = Math.sqrt(r()) * (o.prepCover ?? 1.0), x = W / 2 + Math.cos(a) * rr * rx, y = H / 2 + Math.sin(a) * rr * ry;
       const rad = Math.min(W, H) * (0.22 + r() * 0.18), gr = mg.createRadialGradient(x, y, rad * 0.5, x, y, rad);
       gr.addColorStop(0, 'rgba(0,0,0,0.9)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); mg.fillStyle = gr; mg.fillRect(x - rad, y - rad, rad * 2, rad * 2);
     }
@@ -486,13 +486,27 @@ export function makeDrapeWithWindow(w = 6, h = 5, winW = 2.8, winH = 2.2) {
   // cavity: incised skin edge -> yellow subcutaneous fat -> moist peritoneal floor
   const cavityY = -0.06, cavity = new THREE.Group(); cavity.name = 'cavity';
   const td = tissueDetail();
-  const tex = canvasTex(256, 256, (c, W, H) => { const gr = c.createRadialGradient(W / 2, H / 2, W * 0.1, W / 2, H / 2, W * 0.72); gr.addColorStop(0, '#d89a8e'); gr.addColorStop(0.75, '#b8746c'); gr.addColorStop(1, '#6e3a38'); c.fillStyle = gr; c.fillRect(0, 0, W, H); });
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(winW, winH), new THREE.MeshStandardMaterial({ map: tex, normalMap: td.normal, roughnessMap: td.rough, roughness: 1, metalness: 0 }));
+  const tex = canvasTex(256, 256, (c, W, H) => { const gr = c.createRadialGradient(W / 2, H / 2, W * 0.1, W / 2, H / 2, W * 0.72); gr.addColorStop(0, '#c4766a'); gr.addColorStop(0.7, '#9c5450'); gr.addColorStop(1, '#5c2c2c'); c.fillStyle = gr; c.fillRect(0, 0, W, H); });
+  const inset = 0.16, iw = winW / 2 - inset, ih = winH / 2 - inset;
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(iw * 2, ih * 2), new THREE.MeshStandardMaterial({ map: tex, normalMap: td.normal, roughnessMap: td.rough, roughness: 1, metalness: 0 }));
   floor.rotation.x = -Math.PI / 2; floor.position.y = cavityY; floor.receiveShadow = true; cavity.add(floor);
-  const fatMat = new THREE.MeshStandardMaterial({ color: 0xe2bd72, normalMap: td.normal, roughness: 0.45, metalness: 0 }), wh = rim - cavityY;
-  for (const [sx, sz, len, ry] of [[0, -1, winW, 0], [0, 1, winW, 0], [-1, 0, winH, Math.PI / 2], [1, 0, winH, Math.PI / 2]]) {
-    const wall = new THREE.Mesh(new THREE.BoxGeometry(len, wh, 0.05), fatMat); wall.rotation.y = ry;
-    wall.position.set(sx * winW / 2, cavityY + wh / 2, sz * winH / 2); cavity.add(wall); }
+  // sloped incision walls: skin edge -> lobulated yellow subcutaneous fat -> fascia
+  const wallTex = canvasTex(512, 128, (c, W, H) => {
+    const gr = c.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, '#c98e78'); gr.addColorStop(0.1, '#b9786a'); gr.addColorStop(0.16, '#d8b062'); gr.addColorStop(0.75, '#cf9f52'); gr.addColorStop(0.85, '#b9837a'); gr.addColorStop(1, '#8e4c48');
+    c.fillStyle = gr; c.fillRect(0, 0, W, H); const r = rng(51);
+    for (let i = 0; i < 260; i++) { const x = r() * W, y = H * (0.18 + r() * 0.55), rr = 4 + r() * 9; c.fillStyle = r() > 0.5 ? 'rgba(240,206,120,0.35)' : 'rgba(170,120,50,0.25)'; c.beginPath(); c.ellipse(x, y, rr * 1.4, rr, 0, 0, 7); c.fill(); }
+  }, { repeat: [3, 1] });
+  const ow = winW / 2, oh = winH / 2, outer = [[-ow, -oh], [ow, -oh], [ow, oh], [-ow, oh]], inner = [[-iw, -ih], [iw, -ih], [iw, ih], [-iw, ih]];
+  const wp = [], wu = [], wi = []; let per = 0;
+  for (let k = 0; k < 4; k++) {
+    const k2 = (k + 1) % 4, len = Math.hypot(outer[k2][0] - outer[k][0], outer[k2][1] - outer[k][1]), base = wp.length / 3;
+    wp.push(outer[k][0], rim - 0.005, outer[k][1], outer[k2][0], rim - 0.005, outer[k2][1], inner[k][0], cavityY, inner[k][1], inner[k2][0], cavityY, inner[k2][1]);
+    wu.push(per, 0, per + len, 0, per, 1, per + len, 1); per += len;
+    wi.push(base, base + 2, base + 1, base + 1, base + 2, base + 3);
+  }
+  const wgeo = new THREE.BufferGeometry(); wgeo.setAttribute('position', new THREE.Float32BufferAttribute(wp, 3)); wgeo.setAttribute('uv', new THREE.Float32BufferAttribute(wu.map((v, i) => (i % 2 ? 1 - v : v / 3)), 2)); wgeo.setIndex(wi); wgeo.computeVertexNormals();
+  const walls = new THREE.Mesh(wgeo, new THREE.MeshStandardMaterial({ map: wallTex, normalMap: td.normal, normalScale: new THREE.Vector2(0.4, 0.4), roughness: 0.42, metalness: 0 }));
+  walls.receiveShadow = true; cavity.add(walls);
   mesh.add(cavity);
   const prep = new THREE.Mesh(new THREE.PlaneGeometry(winW + 0.08, winH + 0.08), prepSkinMaterial(winW + 0.08, winH + 0.08));
   prep.rotation.x = -Math.PI / 2; prep.position.y = rim - 0.01; prep.receiveShadow = true; mesh.add(prep); mesh.userData.prep = prep;
@@ -507,7 +521,7 @@ const smooth = (color, extra = {}) => { const t = tissueDetail(); return new THR
 const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 /** Haustrated colon segment along Z (z from z0 to z1) at axis height y, gentle lateral bend; with 3 taeniae coli and small epiploic fat appendages. */
 function colonSegment(z0, z1, y, x0 = 0, bendAmp = 0.08) {
-  const g = new THREE.Group(), len = z1 - z0, mat = smooth(0xd8a68e, { roughness: 0.55 });
+  const g = new THREE.Group(), len = z1 - z0, mat = smooth(0xc98672, { roughness: 0.55 });
   const bend = (z) => x0 + bendAmp * Math.sin((z - z0) / len * Math.PI);
   const prof = [];
   for (let i = 0; i <= 48; i++) { const z = len * i / 48; const cap = Math.min(1, Math.sqrt(Math.max(0, Math.min(z, len - z) / 0.12)));
@@ -515,7 +529,7 @@ function colonSegment(z0, z1, y, x0 = 0, bendAmp = 0.08) {
   const body = latheAlongZ(prof, mat, 24); const pa = body.geometry.attributes.position;
   for (let i = 0; i < pa.count; i++) { const z = pa.getZ(i); pa.setX(i, pa.getX(i) + bend(z + z0)); pa.setZ(i, z + z0); pa.setY(i, pa.getY(i) + y); }
   body.geometry.computeVertexNormals(); g.add(body);
-  const tm = smooth(0xc79c78, { roughness: 0.5 });
+  const tm = smooth(0xb87866, { roughness: 0.5 });
   for (const ang of [Math.PI / 2, Math.PI * 7 / 6, Math.PI * 11 / 6]) {
     const pts = []; for (let i = 0; i <= 24; i++) { const z = z0 + 0.1 + (len - 0.2) * i / 24; pts.push(new THREE.Vector3(bend(z) + 0.268 * Math.cos(ang), y + 0.268 * Math.sin(ang), z)); }
     g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 0.017, 6), tm));
@@ -533,12 +547,12 @@ export function makeOrgan(kind = 'appendix') {
   let anchor = new THREE.Vector3(), radius = 0.2, extra = {};
   if (kind === 'appendix') {
     // cecum (rounded pouch) with ascending colon continuing up (-Z), terminal ileum entering from the left (-X), appendix off the posteromedial wall
-    const cec = new THREE.Mesh(new THREE.SphereGeometry(0.5, 28, 18), smooth(0xd8a68e, { roughness: 0.55 })); cec.position.set(-0.95, 0.25, 0.4); cec.scale.set(1, 0.8, 1.05); g.add(cec);
+    const cec = new THREE.Mesh(new THREE.SphereGeometry(0.5, 28, 18), smooth(0xc98672, { roughness: 0.55 })); cec.position.set(-0.95, 0.25, 0.4); cec.scale.set(1, 0.8, 1.05); g.add(cec);
     g.add(colonSegment(-1.2, 0.35, 0.25, -0.95, 0.04));
-    const il = tubeAlong([{ x: -2.1, y: 0.18, z: 1.1 }, { x: -1.75, y: 0.2, z: 0.8 }, { x: -1.4, y: 0.24, z: 0.42 }], 0.1, smooth(0xe9a698), 12); g.add(il);
+    const il = tubeAlong([{ x: -2.1, y: 0.18, z: 1.1 }, { x: -1.75, y: 0.2, z: 0.8 }, { x: -1.4, y: 0.24, z: 0.42 }], 0.1, smooth(0xd88a7c), 12); g.add(il);
     const jn = new THREE.Mesh(new THREE.TorusGeometry(0.115, 0.03, 8, 16), smooth(0xcf8f82)); jn.position.set(-1.43, 0.24, 0.42); jn.lookAt(-1.43 + 1, 0.24 - 0.12, 0.42 - 0.35); g.add(jn);
     const pts = [{ x: -0.55, y: 0.14, z: 0.3 }, { x: -0.2, y: 0.17, z: 0.05 }, { x: 0.25, y: 0.17, z: 0.18 }, { x: 0.65, y: 0.15, z: -0.05 }];
-    const curve = new THREE.CatmullRomCurve3(pts.map(V3)), pm = smooth(0xd98078, { roughness: 0.5 });
+    const curve = new THREE.CatmullRomCurve3(pts.map(V3)), pm = smooth(0xc4605a, { roughness: 0.5 });
     const ap = new THREE.Mesh(new THREE.TubeGeometry(curve, 48, 0.09, 12), pm); g.add(ap);
     const tip = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 10), pm); tip.position.copy(curve.getPoint(1)); g.add(tip);
     // mesoappendix fan + appendicular artery on its free edge
@@ -546,15 +560,15 @@ export function makeOrgan(kind = 'appendix') {
     for (let i = 0; i <= N; i++) { const t = i / N, c = curve.getPoint(t), w = 0.38 * (1 - 0.75 * t); fv.push(c.x, c.y - 0.05, c.z, c.x + 0.04 * t, 0.03, c.z + w); edge.push(new THREE.Vector3(c.x + 0.04 * t, 0.035, c.z + w * 0.97));
       if (i < N) { const k = i * 2; fi.push(k, k + 1, k + 2, k + 1, k + 3, k + 2); } }
     const fg = new THREE.BufferGeometry(); fg.setAttribute('position', new THREE.Float32BufferAttribute(fv, 3)); fg.setIndex(fi); fg.computeVertexNormals();
-    g.add(new THREE.Mesh(fg, smooth(0xecd09a, { side: THREE.DoubleSide, roughness: 0.7 })));
+    g.add(new THREE.Mesh(fg, smooth(0xdcb36a, { side: THREE.DoubleSide, roughness: 0.7 })));
     g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(edge), 40, 0.014, 6), smooth(0xb02e32, { roughness: 0.4 })));
     anchor.set(0.2, 0.17, 0.15); radius = 0.15; extra.base = new THREE.Vector3(-0.55, 0.14, 0.3); extra.curve = curve; g.scale.setScalar(0.75);
   } else if (kind === 'colon') {
     g.add(colonSegment(-1.2, 1.2, 0.25, 0, 0.12));
-    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.3, 20, 14), smooth(0xd8a68e)); cap.position.set(0, 0.25, 1.28); cap.scale.set(1, 0.9, 0.9); g.add(cap);
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.3, 20, 14), smooth(0xc98672)); cap.position.set(0, 0.25, 1.28); cap.scale.set(1, 0.9, 0.9); g.add(cap);
     anchor.set(0, 0.25, -0.95); radius = 0.27; g.scale.setScalar(0.55);
   } else if (kind === 'gallbladder') {
-    const m = smooth(0x5f7f3e, { roughness: 0.35 });
+    const m = smooth(0x4f6e33, { roughness: 0.35 });
     // pear-shaped sac along X: fundus (x<0) -> body -> neck (x>0)
     const prof = []; for (let i = 0; i <= 40; i++) { const t = i / 40, x = -0.5 + 1.05 * t; const r = 0.33 * Math.sin(Math.PI * Math.pow(t, 0.8)) ** 0.7 * (1 - 0.65 * ss(0.5, 1, t)) + 0.045 * ss(0.8, 1, t); prof.push([x, Math.max(r, 0.001)]); }
     const sac = new THREE.Mesh(new THREE.LatheGeometry(prof.map(([x, r]) => new THREE.Vector2(r, x)), 28), m); sac.geometry.rotateZ(-Math.PI / 2); sac.scale.set(1, 0.8, 0.85); g.add(sac);
@@ -562,7 +576,7 @@ export function makeOrgan(kind = 'appendix') {
     g.add(tubeAlong([{ x: 0.55, y: 0, z: 0 }, { x: 0.72, y: 0.03, z: 0.06 }, { x: 0.95, y: 0.06, z: 0.1 }], 0.035, dm, 10));            // cystic duct
     g.add(tubeAlong([{ x: 1.25, y: 0.07, z: -0.6 }, { x: 1.05, y: 0.065, z: -0.2 }, { x: 0.95, y: 0.06, z: 0.1 }], 0.045, dm, 10));        // common hepatic duct
     g.add(tubeAlong([{ x: 0.95, y: 0.06, z: 0.1 }, { x: 0.9, y: 0.05, z: 0.45 }, { x: 0.85, y: 0.04, z: 0.85 }], 0.05, dm, 10));          // common bile duct
-    const lobe = new THREE.Mesh(new THREE.SphereGeometry(1, 28, 16), smooth(0x7d2f2b, { roughness: 0.3 })); lobe.scale.set(1.0, 0.2, 0.55); lobe.position.set(-0.15, 0.3, -0.5); g.add(lobe); // underside of right liver lobe
+    const lobe = new THREE.Mesh(new THREE.SphereGeometry(1, 28, 16), smooth(0x5a201b, { roughness: 0.3 })); lobe.scale.set(1.0, 0.2, 0.55); lobe.position.set(-0.15, 0.3, -0.5); g.add(lobe); // underside of right liver lobe
     anchor.set(0.9, 0.05, 0.1); radius = 0.38;
   } else if (kind === 'liver') {
     const geo = new THREE.SphereGeometry(1, 48, 28), pa = geo.attributes.position;
@@ -570,7 +584,7 @@ export function makeOrgan(kind = 'appendix') {
     for (let i = 0; i < pa.count; i++) { const x = pa.getX(i), y = pa.getY(i), z = pa.getZ(i);
       pa.setXYZ(i, x * 1.9 + 0.15, y > 0 ? y * 0.5 * sy(x) : y * 0.12 * sy(x), z * 0.95 * sz(x) - (y < 0 ? 0 : 0)); }
     geo.computeVertexNormals();
-    g.add(new THREE.Mesh(geo, smooth(0x7a2b27, { roughness: 0.28 })));
+    g.add(new THREE.Mesh(geo, smooth(0x5a201b, { roughness: 0.28 })));
     const fx = -0.2 * 1.9 + 0.15, fp = []; for (let i = 0; i <= 20; i++) { const z = -0.55 + 1.1 * i / 20, xs = (fx - 0.15) / 1.9; const zz = z / (0.95 * sz(xs)); fp.push(new THREE.Vector3(fx, 0.5 * sy(xs) * Math.sqrt(Math.max(0, 1 - xs * xs - zz * zz)) + 0.006, z)); }
     g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(fp), 30, 0.025, 6), smooth(0xd7b69a)));
     anchor.set(0, 0.4, 0); radius = 1;
