@@ -1,3 +1,5 @@
+> **Superseded.** This early drills-only draft is kept for history. The final script is [video_script.md](video_script.md), and the final video is [`../video/steady_hands_final.mp4`](../video/steady_hands_final.mp4).
+
 # Steady Hands: 3-minute video script
 
 Track: Game Dev, "Project Vital Quest". Target length 3:00. Voiceover in plain, calm tone. Screen is the game unless noted.

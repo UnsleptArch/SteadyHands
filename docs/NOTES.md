@@ -158,3 +158,17 @@ Other issues (non-blocking):
 - chest_tube step 4: the teal "above the rib" band is a very faint strip (opacity 0.18) and the ribs are not drawn on the skin; the player must rely on the small cross-section inset (right) - easy to miss. HUD side panels cover the bottom caption.
 - cholecystectomy: lap overlay text "LAP 30 deg / MIRRORED CONTROL" (bottom-left) and "Instrument: Grasper" (bottom-right) collide with the Focus bar; fundus teal ring is tiny on first view.
 - Perf note for others: the gl-egl AMD path on linux3 gave 3 fps for all surgeries (soft shadows/maps) vs 60 fps on Vulkan + `?safe=1`.
+
+## FINAL STATUS (lead, 2026-11-15 4:30 PM)
+- **Submitted:** `video/steady_hands_final.mp4` (3:00, subtitles, expert name card). Repo public at github.com/UnsleptArch/SteadyHands.
+- **Levels:** all 8 complete. Playtest bots finished every level. Recording-bot grades: A on all except laceration (its demo bot stalls, though the level is playable).
+- **Added late:** Trivia mode (`src/ui/trivia.js`, `content/trivia.json`).
+- **Expert feedback (Dr. Enver Ozer, OSU Otolaryngology):** suturing and trivia are the most valuable; incisions are an acquired skill; add injections, more suture types and more procedures.
+- **Known issues:**
+  - Central-line panel is clipped at 1280×720.
+  - The hint caption sometimes duplicates the banner.
+  - No visible instrument in the appendectomy grasp step.
+  - The chest-tube rib band is faint and `makeThoraxSet` is off (rib misalignment).
+  - The cecum is oversized.
+  - Grading is too lenient.
+  - The laceration demo bot stalls.
