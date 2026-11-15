@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { buildRoom, makeEnvironment } from './room.js';
 import { stubLevel } from './stub.js';
+import { createFreeCam } from './freecam.js';
 
 export const LEVEL_IDS = ['incision', 'suture', 'lap'];
 export const SURGERY_IDS = ['appendectomy', 'laceration', 'cholecystectomy', 'central_line', 'chest_tube'];
@@ -171,6 +172,7 @@ export function createEngine(canvas, opts = {}) {
     emit(type, detail = {}) { events.dispatchEvent(new CustomEvent(type, { detail })); },
     on(type, fn) { const h = (e) => fn(e.detail, e); events.addEventListener(type, h); return () => events.removeEventListener(type, h); },
     setWorkPlane(y) { plane.constant = -y; },
+    workPlaneY() { return -plane.constant; },
     setBotPointer(v) { botPointer = v ? v.clone() : null; },
     setBotDown(b) { botDown = b === null || b === undefined ? null : !!b; if (botDown === null) input.pointer.down = false; },
     setPaused(b) { engine.paused = !!b; engine.emit('pause', { paused: engine.paused }); },
@@ -242,6 +244,7 @@ export function createEngine(canvas, opts = {}) {
     engine.currentLevel = { id, title: mod.title || id, module: mod, controller, added };
     engine.paused = false;
     clock.getDelta();
+    engine.cam && engine.cam.reset(true);
     engine.emit('level:start', { id });
     return engine.currentLevel;
   }
@@ -291,9 +294,11 @@ export function createEngine(canvas, opts = {}) {
     }
     room.update && room.update(dt, t);
     for (const fn of tickFns) { try { fn(dt, t, input); } catch (err) { if (errCount++ < 3) console.error(err); } }
+    try { engine.cam && engine.cam.update(dt); } catch (err) { if (errCount++ < 3) console.error('[core] freecam', err); }
     renderer.render(scene, camera);
   }
 
+  engine.cam = createFreeCam(engine);
   return engine;
 }
 

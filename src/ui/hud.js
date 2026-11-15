@@ -124,7 +124,7 @@ export function createHUD(root, engine) {
     title.querySelector('[data-act=how]').onclick = () => show(how);
   }
   function renderHow() {
-    const c = ['Mouse / trackpad to move the instrument.', 'Hold SHIFT for a steady breath: tremor drops, but your focus meter drains.', 'P or Esc pauses.'];
+    const c = ['Mouse / trackpad to move the instrument.', 'Hold SHIFT for a steady breath: tremor drops, but your focus meter drains.', 'P or Esc pauses.', 'Camera: WASD pans, Q / E zoom out / in, hold the right mouse button and drag to orbit (mouse wheel zooms while right-dragging), C resets the view.'];
     how.innerHTML = `
       <div class="sh-panel wide">
         <div class="sh-panel-head"><h2>How to play</h2><button class="sh-btn ghost" data-act="back">Back</button></div>
@@ -166,7 +166,7 @@ export function createHUD(root, engine) {
         <div class="sh-prog"><div class="l"><span>Progress</span><span id="shPct">0%</span></div>
           <div class="sh-bar"><div id="shProg"></div></div></div>
       </div>
-      <div class="sh-esc"><kbd>P</kbd> / <kbd>Esc</kbd> pause</div>
+      <div class="sh-esc"><span class="sh-camhint">WASD move · Q/E zoom · Right-drag orbit · C reset</span><kbd>P</kbd> / <kbd>Esc</kbd> pause</div>
     </div>`;
   const $ = id => hud.querySelector('#' + id);
 

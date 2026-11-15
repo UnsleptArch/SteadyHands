@@ -80,3 +80,5 @@ kbd{font:600 13px Inter,sans-serif;border:1px solid var(--mut);border-radius:4px
 .sh-cards.two{grid-template-columns:repeat(2,1fr)}
 .sh-card.surg h2{font-size:30px}
 .sh-ui.surgery .sh-top,.sh-ui.surgery .sh-prog{display:none}
+
+.sh-camhint{opacity:.55;margin-right:14px;font-size:13px;letter-spacing:.02em}

@@ -10,6 +10,7 @@ async function safeImport(path, label) {
 }
 
 async function boot() {
+  if (new URLSearchParams(location.search).has('democursor')) import('./ui/cursor.js').catch(() => {});
   const canvas = document.getElementById('scene');
   const uiRoot = document.getElementById('ui');
   const core = await import('./core/engine.js');
@@ -29,6 +30,7 @@ async function boot() {
     engine,
     levels: core.LEVEL_IDS.slice(),
     surgeries: core.SURGERY_IDS.slice(),
+    get camera() { return engine.cam; },
     async start(id) {
       await engine.loadLevel(id);
       return game.state();

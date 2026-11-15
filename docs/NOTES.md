@@ -86,3 +86,18 @@ ART revision: dummy arms now attached at sides; drape follows body (mesh local y
 - Materials: MeshStandardMaterial only, no DoubleSide on drapes (gl_FrontFacing flip on ANGLE/Vulkan made them black in safe mode). One shadow-casting SpotLight (key). HDRI env: assets/hospital_room_2.hdr (Poly Haven CC0, 1k) via RGBELoader, fallback gradient.
 - Vignette: DOM div #sh-vignette inserted before #ui by room.js.
 - SURGERY (RECBOT): `game.engine.currentLevel.controller.targets()` → `{step, title, ready, plane, mirrored, targets:[{label, p:{x,y,z}, screen:{x,y}, holdSec?}]}` for the current step, in action order (labels: press-start/path/end for cuts, handleN-grab/drop, clickN, stitchN-press/release, press-and-hold, rub, drag-from/drop-on, hand-press-and-hold for the mirrored grasper). Wait for `ready:true` between steps (~1.2 s transition).
+
+## RECBOT (demo recording)
+- `src/main.js`: one guarded line in boot(): `?democursor=1` dynamically imports `src/ui/cursor.js` (visible crosshair for headless video). No other core change.
+- Demo bot drives real mouse/keyboard; it reuses each level's `autoplay()` as a path planner by swapping `engine.setBotPointer/setBotDown` at runtime (see docs/RECORDING.md). Keep `autoplay()` working in new surgeries and they'll be recordable automatically.
+
+## PATIENT (15:00) — new patient body (makeDummy -> makePatient)
+- `src/art/patient.js` `makePatient()`; LOOK: `makeDummy()` body is now just `return makePatient()` (same userData: abdomen (-0.5,1.8,0), skinY 1.8, torsoHalfWidth, rightForearm, kind).
+- Adult proportions (head -X, right side +Z), arms out on arm boards (pulse-ox + IV line), head on gel ring with cap + ET tube behind the anaesthesia screen.
+- When a `makeDrapeWithWindow()` mesh sits at the patient's abdomen, the patient hides only that drape's flat *surface* (its hem, prep, cavity and screen bar stay) and builds a body-conforming drape with the same material + window: chest/abdomen/legs contour, feet tent, screen rising to the bar, draped arms. No API change for surgeries.
+
+## CORE — free camera (src/core/freecam.js)
+- User offset layered on the level's framing (levels unchanged): WASD pan, Q/E zoom out/in, right-drag orbit, wheel zooms ONLY while right button held (plain wheel still reaches levels), C reset; auto-reset on level start; off in menus/pause. Pitch clamped above the table; max zoom-out ≈2.4 m in ART-scale scenes (whole OR).
+- Detection: if a level/tick moves the camera, that pose becomes the new base; the offset is applied just before render, so input raycasts use the visible camera.
+- Keys disabled for 'central_line' (it uses Q/E/WASD); any level can opt out with `cameraKeys: false` in its default export (right-drag still works).
+- API: `window.game.camera.reset(snap?)`, `.set({yaw,pitch,dist,pan:[x,z]}, snap?)` (yaw/pitch = rad offsets, dist = multiplier, 1 = level framing), `.get()`, `await .orbitTo({...}, seconds)` (eased). Test: tests/core_cam.py (GPU egl on linux3).
