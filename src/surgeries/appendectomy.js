@@ -423,6 +423,7 @@ export default {
         spec.position.lerpVectors(from, dishPos, e); spec.position.y += Math.sin(e * Math.PI) * 0.6;
         spec.rotation.y = e * 1.2;
         if (u < 1) requestAnimationFrame(tick);
+        else setTimeout(() => { spec.visible = false; dish.visible = false; }, 900); // handed off the field
       };
       requestAnimationFrame(tick);
       setTimeout(() => { if (!disposedFlag) S.award(200, 'Specimen removed'); }, 900);
