@@ -9,7 +9,7 @@ import {
 
 const ID = 'incision';
 const ART_SCALE = 10 / 6;      // ART pad is 6 art-units wide; we want a 100 mm (10 unit) pad
-const TOOL_SCALE = 4.2;         // ART instruments: 1 art unit = 10 cm; slightly shrunk for a readable view
+const TOOL_SCALE = 3.4;         // ART instruments: 1 art unit = 10 cm; slightly shrunk for a readable view
 const DEPTH_BAND = [1.5, 5.0]; // mm: shallower = scratch, deeper = too deep
 const OFFLINE_MM = 2.0;
 
@@ -229,8 +229,13 @@ export default {
         // ---------- visuals ----------
         const k = Math.min(1, dt * 12);
         const yTarget = st.cutting ? padTop - Math.min(st.depth, 7) * MM * 0.6 : padTop + (st.done ? 0.45 : 0.25);
-        toolMesh.position.x = tip.x;
-        toolMesh.position.z = tip.z;
+        if (st.done) { // set the scalpel down off to the side
+          toolMesh.position.x += (endP.x + 4 - toolMesh.position.x) * k * 0.3;
+          toolMesh.position.z += (endP.z + 2 - toolMesh.position.z) * k * 0.3;
+        } else {
+          toolMesh.position.x = tip.x;
+          toolMesh.position.z = tip.z;
+        }
         toolMesh.position.y += (yTarget - toolMesh.position.y) * k;
         // yaw along the line's tangent near the blade
         const i = Math.min(c.i, curvePts.length - 2);
