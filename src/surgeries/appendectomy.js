@@ -65,7 +65,7 @@ export default {
     let arteryPts = null;
     let apMeshes = [];
     // preferred: ANATOMY abdomen set centred on the RLQ (cecum + appendix in the window, liver/bowel/colon around)
-    let aset = null;
+    let aset = null, arteryVessel = null;
     try {
       if (anatomy && anatomy.makeAbdomenSet && dr && dr.mesh) {
         aset = anatomy.makeAbdomenSet({ center: 'rlq', highlight: null, omentum: false });
@@ -85,7 +85,7 @@ export default {
         arteryPts = [];
         for (let i = 0; i <= 20; i++) { const t = i / 20, q = apCurve.getPoint(t); arteryPts.push(q.clone().addScaledVector(dir, 0.1 * (1 - 0.35 * t)).setY(q.y + 0.005)); }
         const vessel = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(arteryPts), 48, 0.011, 8), new THREE.MeshStandardMaterial({ color: 0xa8282c, roughness: 0.35 }));
-        aset.group.attach(vessel);
+        aset.group.attach(vessel); arteryVessel = vessel;
         if (dr.cavity && dr.cavity.children[0]) dr.cavity.children[0].visible = false; // the set brings its own posterior wall
       }
     } catch (e) { console.warn('[surgery] abdomen set failed, using single organ', e); if (aset) aset.group.removeFromParent(); aset = null; apCurve = null; arteryPts = null; apMeshes = []; }
@@ -250,7 +250,6 @@ export default {
             onChange(ts) {
               const t = Math.min(1, (ts[0] + ts[1]) / 2);
               setOpen(t);
-              if (organ && t > 0.12) organ.visible = true; // organs lie below the skin; revealed as the edges part
               if (incMech && t > 0.1) incMech.group.visible = false;
             },
           });
@@ -261,7 +260,6 @@ export default {
         instr: 'Laparoscopic grasper: controls are MIRRORED (fulcrum effect). Find the appendix tip, then hold to grasp. Avoid the artery.',
         cam: closeCam(tipFocus.x - C.x, tipFocus.z - C.z + 0.05, 1.8, 1.15),
         start(S) {
-          if (organ) organ.visible = true;
           const y = AP_Y;
           const target = apTop(0.97);
           const pivot = V(C.x + 2.6, prepY + 1.3, C.z - 0.6); // port: shaft leaves the frame to the right, handle off-screen
@@ -304,6 +302,7 @@ export default {
                   S.precision(d / MM);
                   S.award(d / MM < 3 && attempts <= 1 ? 250 : 180, d / MM < 3 ? 'Perfect grasp!' : 'Appendix grasped');
                   handRing.visible = false; findRing.visible = false;
+                  deliverAppendix();
                   return true;
                 }
               } else holdT = 0;
@@ -323,11 +322,11 @@ export default {
         },
       },
       {
-        title: 'Ligate the artery & clip the base', tool: 'driver', plane: AP_Y + 0.01,
+        title: 'Ligate the artery & clip the base', tool: 'driver', plane: AP_Y + 0.05 + 0.01,
         instr: 'Click the numbered rings in order: 1 ties off the appendicular artery, 2 clips the appendix base.',
         cam: closeCam(apTop(0.25).x - C.x, apTop(0.25).z - C.z + 0.05, 1.5, 0.95),
         start(S) {
-          const y = AP_Y + 0.01;
+          const y = AP_Y + LIFT + 0.01;
           const a = arteryPts[Math.round(arteryPts.length * 0.15)];
           const t1 = V(a.x, y, a.z), t2 = apTop(0.2).setY(y);
           const clipMat = new THREE.MeshStandardMaterial({ color: 0xdfe4ea, metalness: 0.9, roughness: 0.25 });
@@ -344,11 +343,11 @@ export default {
         },
       },
       {
-        title: 'Cut & remove the appendix', tool: 'scalpel', plane: AP_Y + 0.01,
+        title: 'Cut & remove the appendix', tool: 'scalpel', plane: AP_Y + 0.05 + 0.01,
         instr: 'Cut across the appendix along the short purple line, just beyond the clip.',
         cam: closeCam(apTop(0.3).x - C.x, apTop(0.3).z - C.z + 0.05, 1.5, 0.95),
         start(S) {
-          const y = AP_Y + 0.01;
+          const y = AP_Y + LIFT + 0.01;
           const c = apCurve.getPoint(0.32), tan = apCurve.getTangent(0.32);
           const n = V(-tan.z, 0, tan.x).normalize();
           const pts = []; for (let i = 0; i <= 8; i++) pts.push(c.clone().addScaledVector(n, -0.13 + 0.26 * i / 8).setY(y));
@@ -368,8 +367,6 @@ export default {
         cam: closeCam(E.x - C.x, E.z - C.z, 1.7, 1.05),
         start(S) {
           retractors.forEach((r) => { r.visible = false; });
-          if (organ) organ.visible = false;
-          deep.forEach((o) => { o.visible = false; });
           // ease the skin back together
           const t0 = performance.now(), from = openAmt;
           const tick = () => { if (disposedFlag) return; const u = Math.min(1, (performance.now() - t0) / 900); setOpen(from + (0.02 - from) * u); if (u < 1) requestAnimationFrame(tick); };
@@ -384,6 +381,22 @@ export default {
     ];
 
     let disposedFlag = false;
+    // "deliver" the appendix: it rises gently (~1 s) with the grasper from among the bowel loops; base stays on the cecum
+    const LIFT = 0.05;
+    const liftParts = aset ? [aset.parts.appendix, aset.parts.mesoappendix, arteryVessel].filter(Boolean) : apMeshes.slice();
+    function deliverAppendix() {
+      const base = liftParts.map((m) => m.position.y), t0 = performance.now();
+      const tick = () => {
+        if (disposedFlag) return;
+        const u = Math.min(1, (performance.now() - t0) / 1000), e = u * u * (3 - 2 * u);
+        liftParts.forEach((m, i) => { m.position.y = base[i] + LIFT * e; });
+        if (u < 1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+      for (const q of apCurve.points) q.y += LIFT;
+      apCurve.updateArcLengths && apCurve.updateArcLengths();
+      for (const q of arteryPts) q.y += LIFT;
+    }
     const deep = []; // clips + stump, hidden when the wound is closed
     function removeSpecimen(S) {
       // distal appendix lifts out into the specimen dish; a short stump remains
@@ -414,7 +427,7 @@ export default {
     }
 
     setOpen(0);
-    if (organ) organ.visible = false; // revealed when the wound is retracted
+    // organs are always present below the skin; they are only ever occluded by skin/fat, never toggled
     const controller = createSurgery({
       id: ID, engine, art, group, steps, monitor, parTime: 75,
       wideCam: { pos: [C.x + 0.9, prepY + 3.4, C.z + 3.4], target: [C.x - 0.7, prepY + 0.1, C.z - 0.5] },
