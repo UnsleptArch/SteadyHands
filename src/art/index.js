@@ -2,6 +2,7 @@
 // Units: 1 unit = 10 cm (so 0.01 unit = 1 mm). Y is up. Pad lies in the XZ plane, top surface at y = pad.userData.surfaceY.
 // Instrument convention: tip at local origin, instrument body extends toward +Z (so the tool "points" along -Z).
 import * as THREE from 'three';
+import { rng, valueNoise, canvas, texFromCanvas, skinDetail, fabricDetail, tissueDetail, brushedDetail } from './tex.js';
 
 const V3 = (p) => (p.isVector3 ? p.clone() : new THREE.Vector3(p.x ?? 0, p.y ?? 0, p.z ?? 0));
 
@@ -17,87 +18,138 @@ function canvasTex(w, h, draw, opts = {}) {
   if (opts.repeat) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(...opts.repeat); }
   return t;
 }
-function rand(seed) { let s = seed; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
+const rand = rng;
 
-let _brushed;
-function brushedMap() { // streaks along texture U; used as roughness + bump for an anisotropic feel
-  if (_brushed) return _brushed;
-  const r = rand(7);
-  _brushed = canvasTex(256, 256, (g, w, h) => {
-    g.fillStyle = '#808080'; g.fillRect(0, 0, w, h);
-    for (let i = 0; i < 1400; i++) {
-      const v = 90 + r() * 90 | 0;
-      g.fillStyle = `rgba(${v},${v},${v},${0.25 + r() * 0.4})`;
-      g.fillRect(r() * w, r() * h, 20 + r() * 120, 1);
-    }
-  }, { linear: true, repeat: [1, 1] });
-  return _brushed;
-}
 const mats = {};
+// LOOK: grounded-realism materials. MeshStandardMaterial only (GPU-safe), one shadow light, HDRI reflections.
 function steel(rough = 0.26) {
   const k = 'steel' + rough;
-  return mats[k] ||= new THREE.MeshPhysicalMaterial({
-    color: 0xd7dade, metalness: 1, roughness: rough, roughnessMap: brushedMap(), bumpMap: brushedMap(), bumpScale: 0.15,
-    clearcoat: 0.05, envMapIntensity: 1.25,
-  });
+  return mats[k] ||= new THREE.MeshStandardMaterial({ color: 0xe2e6ea, metalness: 1, roughness: rough + 0.04, roughnessMap: brushedDetail().rough, envMapIntensity: 1.15 });
 }
-const blackMat = () => mats.black ||= new THREE.MeshPhysicalMaterial({ color: 0x0b0c0e, roughness: 0.78, metalness: 0.05, clearcoat: 0.08 });
-const handleMat = () => mats.handle ||= new THREE.MeshPhysicalMaterial({ color: 0x1a1d22, roughness: 0.45, metalness: 0.3, clearcoat: 0.4 });
-const goldMat = () => mats.gold ||= new THREE.MeshPhysicalMaterial({ color: 0xc9a24a, metalness: 1, roughness: 0.3, envMapIntensity: 1.2 });
+const blackMat = () => mats.black ||= new THREE.MeshStandardMaterial({ color: 0x101113, roughness: 0.8, metalness: 0.05 });
+const handleMat = () => mats.handle ||= new THREE.MeshStandardMaterial({ color: 0x1c2024, roughness: 0.42, metalness: 0.25 });
+const goldMat = () => mats.gold ||= new THREE.MeshStandardMaterial({ color: 0xc9a24a, metalness: 1, roughness: 0.3 });
 
 function shadowAll(o, cast = true, recv = true) { o.traverse((m) => { if (m.isMesh) { m.castShadow = cast; m.receiveShadow = recv; } }); return o; }
 
-// ---------------------------------------------------------------- lights
+// ---------------------------------------------------------------- lights + environment
+const HDRI_URL = new URL('../../assets/hospital_room_2.hdr', import.meta.url).href;
+let _hdri = null, _hdriPromise = null;
+function loadHDRI() {
+  if (_hdriPromise) return _hdriPromise;
+  _hdriPromise = import('three/addons/loaders/RGBELoader.js').then(({ RGBELoader }) => new Promise((res, rej) => {
+    new RGBELoader().load(HDRI_URL, (t) => { t.mapping = THREE.EquirectangularReflectionMapping; _hdri = t; res(t); }, undefined, rej);
+  }));
+  return _hdriPromise;
+}
 export function makeORLights(scene) {
-  scene.background = new THREE.Color(0x0d1115);
-  scene.fog = new THREE.Fog(0x0d1115, 14, 40);
-  // studio-style procedural environment for the metal reflections (no renderer needed; three PMREMs equirects itself)
-  const env = canvasTex(512, 256, (g, w, h) => {
-    const gr = g.createLinearGradient(0, 0, 0, h);
-    gr.addColorStop(0, '#9fb4c8'); gr.addColorStop(0.5, '#4a5560'); gr.addColorStop(1, '#1c2228');
-    g.fillStyle = gr; g.fillRect(0, 0, w, h);
-    g.fillStyle = '#ffffff';
-    g.fillRect(w * 0.15, h * 0.08, w * 0.22, h * 0.16);   // overhead softboxes
-    g.fillRect(w * 0.60, h * 0.05, w * 0.25, h * 0.2);
-    g.fillStyle = '#9fc4e8'; g.fillRect(w * 0.42, h * 0.3, w * 0.06, h * 0.3); // cool strip
-    g.fillStyle = '#fff2e0'; g.fillRect(0, h * 0.4, w * 0.05, h * 0.2);
+  scene.background = new THREE.Color(0x0a0d10);
+  scene.fog = new THREE.Fog(0x0a0d10, 18, 46);
+  // placeholder env (soft studio gradient) until the CC0 HDRI (Poly Haven "hospital_room_2", 1k) arrives
+  const env = canvasTex(256, 128, (g, w, h) => {
+    const gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, '#c9d4dc'); gr.addColorStop(0.5, '#5d666e'); gr.addColorStop(1, '#22272c');
+    g.fillStyle = gr; g.fillRect(0, 0, w, h); g.fillStyle = '#ffffff'; g.fillRect(w * 0.4, 0, w * 0.2, h * 0.12);
   });
   env.mapping = THREE.EquirectangularReflectionMapping;
-  scene.environment = env;
-  scene.environmentIntensity = 0.9;
+  scene.environment = _hdri || env;
+  scene.environmentIntensity = 0.55;
+  loadHDRI().then((t) => { if (scene.environment === env) scene.environment = t; }).catch((e) => console.warn('[art] HDRI load failed', e));
 
-  const key = new THREE.SpotLight(0xe9f3ff, 50, 0, 0.62, 0.55, 1.6); // cool-white key from above
-  key.position.set(1.2, 9, 2.2);
+  // surgical light: one bright cool-white spot from above = the only shadow caster (soft pool with falloff)
+  const key = new THREE.SpotLight(0xf3f7ff, 120, 0, 0.5, 0.85, 1.7);
+  key.position.set(0.8, 10, 2.4);
   key.target.position.set(0, 0, 0);
   key.castShadow = true;
   key.shadow.mapSize.set(2048, 2048);
-  key.shadow.bias = -0.0003; key.shadow.normalBias = 0.02; key.shadow.radius = 5;
-  key.shadow.camera.near = 3; key.shadow.camera.far = 20;
-  const fill = new THREE.HemisphereLight(0xcfe0f2, 0x1a1410, 0.3);
-  const rim = new THREE.DirectionalLight(0xbcd4ff, 0.5); rim.position.set(-6, 4, -5);
-  const warm = new THREE.PointLight(0xffe2c8, 14, 14, 1.8); warm.position.set(-3.5, 3, 4);
+  key.shadow.bias = -0.0004; key.shadow.normalBias = 0.03; key.shadow.radius = 6;
+  key.shadow.camera.near = 4; key.shadow.camera.far = 22;
+  const fill = new THREE.HemisphereLight(0xdbe6f0, 0x2a2420, 0.35);
+  const rim = new THREE.DirectionalLight(0x9fc8d8, 0.45); rim.position.set(-5, 5, -6);  // subtle cool back light
   const g = new THREE.Group(); g.name = 'ORLights';
-  g.add(key, key.target, fill, rim, warm);
+  g.add(key, key.target, fill, rim);
   scene.add(g);
-  return { group: g, key, fill, rim, dispose() { scene.remove(g); } }; // renderer.shadowMap.enabled must be true
+  return { group: g, key, fill, rim, dispose() { scene.remove(g); } };
 }
 
-// ---------------------------------------------------------------- drape / table
-export function makeDrape(w = 16, d = 12) {
-  const tex = canvasTex(512, 512, (g, W, H) => {
-    g.fillStyle = '#1f5a4b'; g.fillRect(0, 0, W, H);
-    const r = rand(3);
-    for (let i = 0; i < 5000; i++) { const v = r(); g.fillStyle = `rgba(${v > .5 ? 255 : 0},${v > .5 ? 255 : 30},${v > .5 ? 255 : 20},0.04)`; g.fillRect(r() * W, r() * H, 2 + r() * 6, 1 + r() * 2); }
-  }, { repeat: [w / 2, d / 2] });
-  const bump = canvasTex(256, 256, (g, W, H) => { const r = rand(11); g.fillStyle = '#888'; g.fillRect(0, 0, W, H);
-    for (let i = 0; i < 700; i++) { const v = 100 + r() * 100 | 0; g.fillStyle = `rgb(${v},${v},${v})`; g.fillRect(r() * W, r() * H, 3 + r() * 30, 2); } },
-    { linear: true, repeat: [w / 2, d / 2] });
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshPhysicalMaterial({ map: tex, bumpMap: bump, bumpScale: 0.6, roughness: 0.92, sheen: 0.6, sheenColor: new THREE.Color(0x6fbfa6) }));
-  m.rotation.x = -Math.PI / 2; m.receiveShadow = true; m.name = 'drape';
+// ---------------------------------------------------------------- drapes
+const DRAPE_BLUE = 0x3e6e8e;
+function drapeMat() {
+  if (mats.drape) return mats.drape;
+  const f = fabricDetail();
+  return (mats.drape = new THREE.MeshStandardMaterial({ color: DRAPE_BLUE, map: f.albedo, normalMap: f.normal, normalScale: new THREE.Vector2(0.55, 0.55),
+    roughness: 0.93, metalness: 0, side: THREE.DoubleSide, envMapIntensity: 0.6 }));
+}
+const sstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+const foldNoise = valueNoise(77, 64);
+/** height-field drape: grid over [-W/2,W/2]x[-D/2,D/2]; heightFn(x,z) -> y; optional rectangular hole (winW x winH at origin).
+ *  Folds grow with distance from the hole. UVs in world units (fabric texture tiles every ~0.6 units). */
+function buildDrape({ W, D, nx = 120, nz = 90, heightFn, winW = 0, winH = 0, foldAmp = 0.06, uvScale = 1.6 }) {
+  const pos = [], uv = [], idx = [];
+  for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) {
+    let x = -W / 2 + W * i / nx, z = -D / 2 + D * j / nz;
+    // snap the grid lines nearest the window edge onto it so the hole is clean
+    if (winW) { if (Math.abs(Math.abs(x) - winW / 2) < W / nx * 0.5) x = Math.sign(x) * winW / 2; if (Math.abs(Math.abs(z) - winH / 2) < D / nz * 0.5) z = Math.sign(z) * winH / 2; }
+    const dx = Math.max(0, Math.abs(x) - winW / 2), dz = Math.max(0, Math.abs(z) - winH / 2), dist = Math.hypot(dx, dz);
+    const n = foldNoise(x * 0.9 + 3, z * 0.35 + 7), ridge = 1 - Math.abs(2 * n - 1);
+    const n2 = foldNoise(x * 0.3 + 11, z * 1.1 + 2), ridge2 = 1 - Math.abs(2 * n2 - 1);
+    const fold = foldAmp * sstep(0.05, 1.4, dist) * (ridge * ridge * 1.0 + ridge2 * ridge2 * 0.6);
+    pos.push(x, heightFn(x, z) + fold, z); uv.push(x * uvScale, z * uvScale);
+  }
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+    const a = j * (nx + 1) + i, b = a + 1, c = a + nx + 1, d = c + 1;
+    if (winW) { const cx = (pos[a * 3] + pos[d * 3]) / 2, cz = (pos[a * 3 + 2] + pos[d * 3 + 2]) / 2; if (Math.abs(cx) < winW / 2 && Math.abs(cz) < winH / 2) continue; }
+    idx.push(a, c, b, b, c, d);
+  }
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  geo.setIndex(idx); geo.computeVertexNormals();
+  const m = new THREE.Mesh(geo, drapeMat()); m.receiveShadow = true; m.castShadow = true; m.name = 'drape';
+  return m;
+}
+/** rolled hem around a rectangular window (gives the drape visible thickness) */
+function windowHem(winW, winH, y, r = 0.035, cr = 0.06) {
+  const s = roundedRectShape(winW + r * 1.2, winH + r * 1.2, cr), pts = s.getSpacedPoints(160).map((p) => new THREE.Vector3(p.x, y, p.y));
+  const m = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, true), 220, r, 10, true), drapeMat());
+  m.castShadow = true; m.receiveShadow = true; m.name = 'drapeHem'; return m;
+}
+
+export function makeDrape(w = 16, d = 12) { // flat-ish table drape (blue, gentle folds)
+  const m = buildDrape({ W: w, D: d, nx: 80, nz: 60, heightFn: () => 0, foldAmp: 0.03 });
   return m;
 }
 
-// ---------------------------------------------------------------- tissue pad
+// ---------------------------------------------------------------- skin
+/** realistic (not hyper-real) skin albedo canvas for a w x h patch, with a soft povidone-iodine (Betadine) prep stain. */
+function skinCanvas(w, h, { prep = true, seed = 5, pxu = 170 } = {}) {
+  const W = Math.round(w * pxu), H = Math.round(h * pxu), c = canvas(W, H), g = c.getContext('2d'), r = rng(seed);
+  g.fillStyle = '#d6a68c'; g.fillRect(0, 0, W, H);
+  for (let i = 0; i < 70; i++) { // gentle tone variation
+    const x = r() * W, y = r() * H, rad = (0.25 + r() * 0.8) * pxu, gr = g.createRadialGradient(x, y, 0, x, y, rad);
+    const col = r() > 0.5 ? '232,186,160' : '196,140,118'; gr.addColorStop(0, `rgba(${col},0.18)`); gr.addColorStop(1, `rgba(${col},0)`);
+    g.fillStyle = gr; g.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+  }
+  if (prep) { // Betadine: overlapping circular wipes, soft irregular border
+    const cx = W / 2, cy = H / 2;
+    for (let i = 0; i < 260; i++) {
+      const a = r() * Math.PI * 2, rr = Math.sqrt(r()) * 0.5, x = cx + Math.cos(a) * rr * W * 0.92, y = cy + Math.sin(a) * rr * H * 0.92;
+      const rad = (0.18 + r() * 0.35) * pxu * Math.max(1, Math.min(w, h) / 3), gr = g.createRadialGradient(x, y, 0, x, y, rad);
+      const tone = r() > 0.5 ? '168,86,34' : '140,66,26';
+      gr.addColorStop(0, `rgba(${tone},0.10)`); gr.addColorStop(0.7, `rgba(${tone},0.07)`); gr.addColorStop(1, `rgba(${tone},0)`);
+      g.fillStyle = gr; g.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+    }
+    g.globalCompositeOperation = 'multiply'; g.fillStyle = 'rgba(236,200,170,0.25)'; g.fillRect(0, 0, W, H); g.globalCompositeOperation = 'source-over';
+  }
+  return c;
+}
+/** skin material. opts: {w,h (patch size for the albedo), prep (Betadine stain), repeat (detail tiling)} */
+export function makeSkinMaterial(o = {}) {
+  const w = o.w ?? 3, h = o.h ?? 2, d = skinDetail();
+  const map = texFromCanvas(skinCanvas(w, h, o));
+  const nm = d.normal.clone(); nm.needsUpdate = true; const rep = o.repeat ?? 1.4; nm.repeat.set(w * rep, h * rep);
+  return new THREE.MeshStandardMaterial({ map, normalMap: nm, normalScale: new THREE.Vector2(0.12, 0.12), roughness: 0.58, metalness: 0, envMapIntensity: 0.5 });
+}
+const plainSkin = () => mats.plainSkin ||= new THREE.MeshStandardMaterial({ color: 0xd2a68e, roughness: 0.62, metalness: 0, envMapIntensity: 0.5 });
+
+// ---------------------------------------------------------------- surgical field (replaces the tissue pad)
 function roundedRectShape(w, d, r) {
   const s = new THREE.Shape(), x = -w / 2, y = -d / 2;
   s.moveTo(x + r, y); s.lineTo(x + w - r, y); s.quadraticCurveTo(x + w, y, x + w, y + r);
@@ -107,53 +159,47 @@ function roundedRectShape(w, d, r) {
   return s;
 }
 
-/** makeTissuePad({width=6, depth=4, thickness=0.35, drape=true}) -> Group.
- *  userData: {width, depth, thickness, surfaceY, top (mesh), toUV(x,z)->{u,v}, contains(x,z)}. Pad centred on x=z=0. */
-export function makeTissuePad(o = {}) {
-  const width = o.width ?? 6, depth = o.depth ?? 4, th = o.thickness ?? 0.35;
-  const group = new THREE.Group(); group.name = 'TissuePad';
-  const pink = new THREE.Color(0xe9b9ad);
-  const bodyMat = new THREE.MeshPhysicalMaterial({ color: pink, roughness: 0.55, clearcoat: 0.35, clearcoatRoughness: 0.5, sheen: 1, sheenColor: new THREE.Color(0xff9a95), sheenRoughness: 0.5 });
-  const geo = new THREE.ExtrudeGeometry(roundedRectShape(width, depth, 0.28), { depth: th - 0.06, bevelEnabled: true, bevelThickness: 0.03, bevelSize: 0.03, bevelSegments: 4, curveSegments: 12 });
-  geo.rotateX(-Math.PI / 2); geo.translate(0, 0.03, 0);
-  const body = new THREE.Mesh(geo, bodyMat); body.name = 'padBody';
-  group.add(body);
-  const surfaceY = th + 0.0005;
-  // printed top surface: skin colour, mottling, rulers and registration marks
-  const pxm = 320; // px per unit
-  const tex = canvasTex(Math.round(width * pxm / 2) * 2, Math.round(depth * pxm / 2) * 2, (g, W, H) => {
-    g.fillStyle = '#d9a396'; g.fillRect(0, 0, W, H);
-    const r = rand(5);
-    for (let i = 0; i < 260; i++) { const x = r() * W, y = r() * H, rad = 20 + r() * 90; const gr = g.createRadialGradient(x, y, 0, x, y, rad);
-      const c = r() > .5 ? '255,205,195' : '215,150,140'; gr.addColorStop(0, `rgba(${c},0.10)`); gr.addColorStop(1, `rgba(${c},0)`); g.fillStyle = gr; g.fillRect(x - rad, y - rad, rad * 2, rad * 2); }
-    for (let i = 0; i < 7000; i++) { g.fillStyle = `rgba(120,60,60,${r() * 0.05})`; g.fillRect(r() * W, r() * H, 1.5, 1.5); }
-    g.strokeStyle = 'rgba(40,60,90,0.55)'; g.fillStyle = 'rgba(40,60,90,0.65)'; g.lineWidth = 1.5; g.font = '15px Inter, Arial, sans-serif';
-    const mm = pxm / 10; // 1 mm in px
-    const m = 28; // ruler inset
-    for (let i = 0; i * mm < W - 2 * m; i++) { const x = m + i * mm, L = i % 10 === 0 ? 14 : i % 5 === 0 ? 9 : 5;
-      g.beginPath(); g.moveTo(x, m); g.lineTo(x, m + L); g.moveTo(x, H - m); g.lineTo(x, H - m - L); g.stroke();
-      if (i % 10 === 0 && i) g.fillText(String(i / 10), x - 4, m + 28); }
-    for (let i = 0; i * mm < H - 2 * m; i++) { const y = m + i * mm, L = i % 10 === 0 ? 14 : i % 5 === 0 ? 9 : 5;
-      g.beginPath(); g.moveTo(m, y); g.lineTo(m + L, y); g.moveTo(W - m, y); g.lineTo(W - m - L, y); g.stroke(); }
-    g.setLineDash([3, 9]); g.strokeStyle = 'rgba(40,60,90,0.22)';
-    g.beginPath(); g.moveTo(W / 2, m + 20); g.lineTo(W / 2, H - m - 20); g.moveTo(m + 20, H / 2); g.lineTo(W - m - 20, H / 2); g.stroke();
-    g.setLineDash([]); g.strokeStyle = 'rgba(40,60,90,0.5)';
-    for (const [cx, cy] of [[W / 2, H / 2]]) { g.beginPath(); g.arc(cx, cy, 10, 0, 7); g.moveTo(cx - 18, cy); g.lineTo(cx + 18, cy); g.moveTo(cx, cy - 18); g.lineTo(cx, cy + 18); g.stroke(); }
-  });
-  const bump = canvasTex(256, 256, (g, W, H) => { const r = rand(21); g.fillStyle = '#808080'; g.fillRect(0, 0, W, H);
-    for (let i = 0; i < 3000; i++) { const v = 110 + r() * 50 | 0; g.fillStyle = `rgb(${v},${v},${v})`; g.fillRect(r() * W, r() * H, 2, 2); } }, { linear: true, repeat: [width, depth] });
-  const top = new THREE.Mesh(new THREE.PlaneGeometry(width - 0.12, depth - 0.12),
-    new THREE.MeshPhysicalMaterial({ map: tex, bumpMap: bump, bumpScale: 0.25, roughness: 0.5, clearcoat: 0.4, clearcoatRoughness: 0.45, sheen: 1, sheenColor: new THREE.Color(0xff9a95), sheenRoughness: 0.5 }));
-  top.rotation.x = -Math.PI / 2; top.position.y = surfaceY; top.name = 'padTop';
-  group.add(top);
-  if (o.drape !== false) { const d = makeDrape(); d.position.y = -0.002; group.add(d); }
-  shadowAll(group);
+/** makeSurgicalField({w=6,h=4, surfaceY=0.35, drape=true, prep=true}) -> {mesh (Group), surfaceY, toLocal(x,z)}
+ *  A prepped skin window (w x h, Betadine-tinted) surrounded by blue OR drapes that fall away over a body.
+ *  mesh.userData = {width, depth, thickness, surfaceY, top, toUV, contains} (same as the old tissue pad, so incisionDecal(mesh) works).
+ *  Field-local x,z in [-w/2,w/2] x [-h/2,h/2]; toLocal(worldX, worldZ) -> [x,z] (also .x/.z) in field-local units. */
+export function makeSurgicalField(o = {}) {
+  const w = o.w ?? o.width ?? 6, h = o.h ?? o.depth ?? 4, top = o.surfaceY ?? o.thickness ?? 0.35;
+  const group = new THREE.Group(); group.name = 'SurgicalField';
+  const surfaceY = top + 0.0005;
+  const skinMesh = new THREE.Mesh(new THREE.PlaneGeometry(w + 0.3, h + 0.3), makeSkinMaterial({ w: w + 0.3, h: h + 0.3, prep: o.prep !== false }));
+  skinMesh.rotation.x = -Math.PI / 2; skinMesh.position.y = surfaceY; skinMesh.receiveShadow = true; skinMesh.name = 'padTop';
+  group.add(skinMesh);
+  // body volume under the skin so edges never show a gap (hidden by the drape)
+  const body = new THREE.Mesh(new THREE.BoxGeometry(w + 0.3, top, h + 0.3), plainSkin()); body.position.y = top / 2 - 0.002; group.add(body);
+  if (o.drape !== false) {
+    const S = Math.max(w, h), W = Math.max(18, w * 3.2), D = Math.max(14, h * 3.4), hem = 0.03;
+    const R = h / 2 + S * 0.55; // body half-width under the drape
+    const heightFn = (x, z) => {
+      const dz = Math.max(0, Math.abs(z) - h / 2), dx = Math.max(0, Math.abs(x) - w / 2);
+      const body = top + hem - (top + hem + 0.2) * sstep(0, R - h / 2, dz) ** 1.6;   // falls away over the flanks
+      return Math.max(-0.02, body - 0.02 * dx) ;
+    };
+    const dr = buildDrape({ W, D, heightFn, winW: w, winH: h, foldAmp: 0.09 * S / 6, uvScale: 1.6 * 6 / S });
+    group.add(dr);
+    group.add(windowHem(w, h, surfaceY + 0.012, 0.035 * S / 6, 0.08));
+  }
+  shadowAll(group, false, true);
+  const W0 = w + 0.12, D0 = h + 0.12; // legacy pad convention: decal covers width-0.12
   Object.assign(group.userData, {
-    width, depth, thickness: th, surfaceY, top,
-    toUV: (x, z) => ({ u: x / (width - 0.12) + 0.5, v: z / (depth - 0.12) + 0.5 }),
-    contains: (x, z) => Math.abs(x) <= (width - 0.12) / 2 && Math.abs(z) <= (depth - 0.12) / 2,
+    width: W0, depth: D0, thickness: top, surfaceY, top: skinMesh, kind: 'field',
+    toUV: (x, z) => ({ u: x / w + 0.5, v: z / h + 0.5 }),
+    contains: (x, z) => Math.abs(x) <= w / 2 && Math.abs(z) <= h / 2,
   });
-  return group;
+  const toLocal = (x, z) => { group.updateMatrixWorld(true); const v = group.worldToLocal(new THREE.Vector3(x, 0, z)); const r = [v.x, v.z]; r.x = v.x; r.z = v.z; return r; };
+  group.userData.toLocal = toLocal;
+  return { mesh: group, surfaceY, toLocal, userData: group.userData };
+}
+
+/** legacy alias: makeTissuePad() -> the surgical field Group (old code did `pad.mesh` via fromArt or used the Group directly). */
+export function makeTissuePad(o = {}) {
+  const f = makeSurgicalField({ w: (o.width ?? 6) - 0.12, h: (o.depth ?? 4) - 0.12, surfaceY: o.thickness ?? 0.35, drape: o.drape });
+  return f.mesh;
 }
 
 // ---------------------------------------------------------------- incision decal
@@ -169,7 +215,7 @@ export function incisionDecal(pad) {
   const tex = new THREE.CanvasTexture(outC); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
   const px = (x) => (x / W + 0.5) * cw, py = (z) => (z / H + 0.5) * ch;
   let last = null, dirty = true;
-  const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+  const mat = new THREE.MeshStandardMaterial({ map: tex, transparent: true, depthWrite: false, roughness: 0.45, metalness: 0, envMapIntensity: 0.5, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(W, H), mat);
   mesh.rotation.x = -Math.PI / 2; mesh.position.y = surfaceY + 0.002; mesh.renderOrder = 2; mesh.name = 'incisionDecal';
   pad.add(mesh);
@@ -178,23 +224,27 @@ export function incisionDecal(pad) {
   mesh.onBeforeRender = () => { if (dirty) compose(); };
   const api = {
     mesh, texture: tex,
-    setGuide(pts, { color = '#1d4f9a', dashed = true, width: lw = 3 } = {}) {
+    setGuide(pts, { color = '#5b3a9e', dashed = true, width: lw = 3 } = {}) {
       gg.clearRect(0, 0, cw, ch); if (!pts || pts.length < 2) { dirty = true; return; }
-      gg.strokeStyle = color; gg.lineWidth = lw; gg.lineCap = 'round'; gg.lineJoin = 'round'; gg.globalAlpha = 0.85;
-      if (dashed) gg.setLineDash([12, 9]);
+      // surgical skin-marker ink: slightly soft edge (ink bleed), semi-opaque
+      gg.strokeStyle = color; gg.lineWidth = lw * 1.15; gg.lineCap = 'round'; gg.lineJoin = 'round'; gg.globalAlpha = 0.82;
+      gg.shadowColor = color; gg.shadowBlur = 2.5;
+      if (dashed) gg.setLineDash([14, 8]);
       gg.beginPath(); pts.forEach((p, i) => (i ? gg.lineTo(px(p.x), py(p.z)) : gg.moveTo(px(p.x), py(p.z)))); gg.stroke();
-      gg.setLineDash([]); gg.globalAlpha = 1;
-      for (const p of [pts[0], pts[pts.length - 1]]) { gg.fillStyle = color; gg.beginPath(); gg.arc(px(p.x), py(p.z), 6, 0, 7); gg.fill(); }
+      gg.setLineDash([]);
+      for (const p of [pts[0], pts[pts.length - 1]]) { gg.fillStyle = color; gg.beginPath(); gg.arc(px(p.x), py(p.z), 5.5, 0, 7); gg.fill(); }
+      gg.shadowBlur = 0; gg.globalAlpha = 1;
       dirty = true;
     },
     addPoint(x, z, d = 0.5) {
       const p = { x: px(x), y: py(z) };
       if (last) {
-        const w = 2.5 + d * 4;
-        const seg = (c, lw, a, off = 0) => { cg.strokeStyle = c; cg.lineWidth = lw; cg.globalAlpha = a; cg.lineCap = 'round'; cg.beginPath(); cg.moveTo(last.x + off, last.y + off); cg.lineTo(p.x + off, p.y + off); cg.stroke(); };
-        seg('rgba(255,235,228,1)', w + 3.5, 0.55, 0.9);  // lit lip of the slit
-        seg('rgba(70,25,28,1)', w + 1.8, 0.55);           // groove shoulder
-        seg('rgba(12,4,6,1)', w, 0.95);                   // groove core
+        const w = 1.6 + d * 2.6; // thin, clean incision; deeper = slightly wider gap
+        const seg = (c, lw, a, ox = 0, oy = 0) => { cg.strokeStyle = c; cg.lineWidth = lw; cg.globalAlpha = a; cg.lineCap = 'round'; cg.beginPath(); cg.moveTo(last.x + ox, last.y + oy); cg.lineTo(p.x + ox, p.y + oy); cg.stroke(); };
+        seg('rgb(214,128,122)', w + 7, 0.22);          // faint pink wound edge
+        seg('rgb(255,226,214)', w + 2.2, 0.35, 0, -1); // lit upper lip
+        seg('rgb(150,48,52)', w + 1.2, 0.85);          // parted dermis edge
+        seg('rgb(72,14,20)', w * 0.55, 0.95);          // gap core
         cg.globalAlpha = 1;
       }
       last = p; dirty = true;
@@ -205,7 +255,7 @@ export function incisionDecal(pad) {
       mg.strokeStyle = '#fff'; mg.lineWidth = 2; mg.stroke(); mg.globalAlpha = 1; dirty = true;
     },
     flash(x, z) { // subtle red error highlight (no gore)
-      const gr = mg.createRadialGradient(px(x), py(z), 0, px(x), py(z), 28); gr.addColorStop(0, 'rgba(210,40,40,0.55)'); gr.addColorStop(1, 'rgba(210,40,40,0)');
+      const gr = mg.createRadialGradient(px(x), py(z), 0, px(x), py(z), 28); gr.addColorStop(0, 'rgba(200,60,60,0.35)'); gr.addColorStop(1, 'rgba(200,60,60,0)');
       mg.fillStyle = gr; mg.fillRect(px(x) - 30, py(z) - 30, 60, 60); dirty = true;
     },
     clearCut() { cg.clearRect(0, 0, cw, ch); last = null; dirty = true; },
@@ -332,9 +382,9 @@ export function makeLapBox(o = {}) {
   const floorTex = canvasTex(512, 512, (c, w, h) => { c.fillStyle = '#2a3a35'; c.fillRect(0, 0, w, h); const r = rand(9);
     for (let i = 0; i < 6000; i++) { c.fillStyle = `rgba(255,255,255,${r() * 0.05})`; c.fillRect(r() * w, r() * h, 2, 2); }
     c.strokeStyle = 'rgba(190,220,210,0.18)'; c.lineWidth = 2; for (let i = 0; i <= 8; i++) { c.beginPath(); c.moveTo(i * w / 8, 0); c.lineTo(i * w / 8, h); c.moveTo(0, i * h / 8); c.lineTo(w, i * h / 8); c.stroke(); } });
-  const floor = new THREE.Mesh(new THREE.BoxGeometry(W, t, Dp), new THREE.MeshPhysicalMaterial({ map: floorTex, roughness: 0.7, clearcoat: 0.1 })); floor.position.y = -t / 2; g.add(floor);
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(W, t, Dp), new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.7 })); floor.position.y = -t / 2; g.add(floor);
   const box = (w, h, d, x, y, z, m = shell) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); g.add(b); return b; };
-  const backMat = new THREE.MeshPhysicalMaterial({ color: 0x15181c, roughness: 0.85 });
+  const backMat = new THREE.MeshStandardMaterial({ color: 0x15181c, roughness: 0.85 });
   box(W, H, t, 0, H / 2, -Dp / 2 - t / 2, backMat);
   box(t, H, Dp + 2 * t, -W / 2 - t / 2, H / 2, 0);
   box(t, H, Dp + 2 * t, W / 2 + t / 2, H / 2, 0);
@@ -345,7 +395,7 @@ export function makeLapBox(o = {}) {
   const cg = new THREE.ExtrudeGeometry(cs, { depth: t, bevelEnabled: false, curveSegments: 32 }); cg.rotateX(Math.PI / 2); cg.translate(0, H + t, 0);
   const ceil = new THREE.Mesh(cg, shell); g.add(ceil);
   // trocar sleeve (port)
-  const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(portR + 0.02, portR + 0.02, 0.5, 32, 1, true), new THREE.MeshPhysicalMaterial({ color: 0x2a2d33, roughness: 0.35, metalness: 0.4, side: THREE.DoubleSide }));
+  const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(portR + 0.02, portR + 0.02, 0.5, 32, 1, true), new THREE.MeshStandardMaterial({ color: 0x2a2d33, roughness: 0.35, metalness: 0.4, side: THREE.DoubleSide }));
   sleeve.position.set(0, H + t + 0.18, portZ); g.add(sleeve);
   const flange = new THREE.Mesh(new THREE.TorusGeometry(portR + 0.04, 0.045, 12, 32), steel(0.3)); flange.rotation.x = Math.PI / 2; flange.position.set(0, H + t * 2 + 0.02, portZ); g.add(flange);
   const lip = new THREE.Mesh(new THREE.TorusGeometry(portR, 0.02, 10, 32), new THREE.MeshStandardMaterial({ color: 0xb02a2a, roughness: 0.5 })); lip.rotation.x = Math.PI / 2; lip.position.set(0, H + t * 2 + 0.2, portZ); g.add(lip);
@@ -363,7 +413,7 @@ export function makePeg(color = 'yellow') {
   const c = typeof color === 'string' && TRAIN[color] !== undefined ? TRAIN[color] : color;
   const r = 0.11, h = 0.14;
   const prof = [[0.045, 0], [r - 0.025, 0], [r, 0.025], [r, h - 0.025], [r - 0.025, h], [0.045, h], [0.04, h / 2]].map(([x, y]) => new THREE.Vector2(x, y));
-  const m = new THREE.Mesh(new THREE.LatheGeometry(prof, 28), new THREE.MeshPhysicalMaterial({ color: c, roughness: 0.35, clearcoat: 0.6, clearcoatRoughness: 0.25, sheen: 0.4 }));
+  const m = new THREE.Mesh(new THREE.LatheGeometry(prof, 28), new THREE.MeshStandardMaterial({ color: c, roughness: 0.35 }));
   m.name = 'Peg'; shadowAll(m); m.userData = { radius: r, height: h, color: c, kind: 'peg' };
   return m;
 }
@@ -371,7 +421,7 @@ export function makePeg(color = 'yellow') {
 export function makePost(color = 'blue') {
   const c = typeof color === 'string' && TRAIN[color] !== undefined ? TRAIN[color] : color;
   const g = new THREE.Group(); g.name = 'Post';
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.22, 0.05, 32), new THREE.MeshPhysicalMaterial({ color: c, roughness: 0.4, clearcoat: 0.4 })); base.position.y = 0.025;
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.22, 0.05, 32), new THREE.MeshStandardMaterial({ color: c, roughness: 0.4 })); base.position.y = 0.025;
   const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.45, 16), steel(0.3)); pin.position.y = 0.25;
   g.add(base, pin); shadowAll(g); g.userData = { top: new THREE.Vector3(0, 0.45, 0), height: 0.45, kind: 'post' };
   return g;
@@ -381,7 +431,7 @@ export function makeVessel(path, radius = 0.045) {
   const pts = path.map(V3);
   const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.3);
   const m = new THREE.Mesh(new THREE.TubeGeometry(curve, Math.max(24, pts.length * 14), radius, 14),
-    new THREE.MeshPhysicalMaterial({ color: 0xb3151c, roughness: 0.28, clearcoat: 1, clearcoatRoughness: 0.12, sheen: 0.5, sheenColor: new THREE.Color(0xff6a6a) }));
+    new THREE.MeshStandardMaterial({ color: 0xb3151c, roughness: 0.28 }));
   m.name = 'Vessel'; shadowAll(m);
   const samples = curve.getSpacedPoints(120);
   m.userData = { curve, radius, kind: 'vessel', samples,
@@ -391,82 +441,84 @@ export function makeVessel(path, radius = 0.045) {
 }
 
 // ================================================================ SURGERIES ADDENDUM (low-poly, flat-shaded, no gore)
-const flat = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 0.8, metalness: 0.02, ...extra });
-const skin = () => mats.skin ||= flat(0xcfc4b3);
+const flat = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.7, metalness: 0.02, ...extra });
+const skin = () => mats.skin ||= plainSkin();
 
-/** makeDummy() -> Group: OR table + supine CPR-style mannequin, arms at sides attached at the shoulders. Head at -X, feet at +X, table pad top at y=0.2.
+/** makeDummy() -> Group: OR table + supine patient (smooth, mostly hidden under drapes). Head at -X, feet at +X, table pad top at y=0.2.
  *  userData: {abdomen: Vector3 (abdomen centre at skin top), skinY, torsoHalfWidth, rightForearm} */
 export function makeDummy() {
   const g = new THREE.Group(); g.name = 'Dummy';
-  const table = new THREE.Mesh(new THREE.BoxGeometry(22, 0.3, 7), new THREE.MeshPhysicalMaterial({ color: 0x9aa3ab, metalness: 0.9, roughness: 0.35 }));
-  table.position.y = -0.15; g.add(table);
-  const pad = new THREE.Mesh(new THREE.BoxGeometry(21, 0.2, 6.4), flat(0x2c4a5a)); pad.position.y = 0.1; g.add(pad);
-  for (const x of [-8, 8]) { const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 6, 8), flat(0x70787f)); leg.position.set(x, -3.3, 0); g.add(leg); }
-  const base = new THREE.Mesh(new THREE.BoxGeometry(18, 0.3, 3), flat(0x4a5056)); base.position.y = -6.4; g.add(base);
+  const tableSteel = new THREE.MeshStandardMaterial({ color: 0xaab2ba, metalness: 1, roughness: 0.32, roughnessMap: brushedDetail().rough });
+  const table = new THREE.Mesh(new THREE.BoxGeometry(22, 0.3, 7), tableSteel); table.position.y = -0.15; g.add(table);
+  const pad = new THREE.Mesh(new THREE.BoxGeometry(21, 0.2, 6.4), flat(0x1d2328, { roughness: 0.6 })); pad.position.y = 0.1; g.add(pad);
+  for (const x of [-8, 8]) { const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 6, 20), tableSteel); leg.position.set(x, -3.3, 0); g.add(leg); }
+  const base = new THREE.Mesh(new THREE.BoxGeometry(18, 0.3, 3), flat(0x2a2f34)); base.position.y = -6.4; g.add(base);
   const add = (geo, x, y, z, mat = skin()) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); g.add(m); return m; };
   const alongX = (geo) => { geo.rotateZ(Math.PI / 2); return geo; };
-  // torso: elliptical low-poly cylinder, half-width 1.5 (z), half-height 0.8 (y); top at y=1.8
-  add(alongX(new THREE.CylinderGeometry(1, 1, 6, 8)), -1, 0.9, 0).scale.set(1, 0.7, 1.5);
-  const chest = add(new THREE.SphereGeometry(1, 8, 6), -3.9, 0.9, 0); chest.scale.set(0.9, 0.7, 1.5);
-  const hips = add(new THREE.SphereGeometry(1, 8, 6), 2.1, 0.9, 0); hips.scale.set(0.9, 0.7, 1.4);
-  // short neck + small round head, face on top (supine)
-  add(alongX(new THREE.CylinderGeometry(0.4, 0.45, 0.7, 8)), -5.0, 0.8, 0);
-  add(new THREE.IcosahedronGeometry(0.85, 1), -5.95, 1.05, 0);
-  const dark = flat(0x2b2f36);
-  for (const sz of [-1, 1]) add(new THREE.SphereGeometry(0.09, 6, 4), -6.1, 1.86, sz * 0.3, dark);
-  add(new THREE.ConeGeometry(0.12, 0.28, 4), -5.9, 1.98, 0, flat(0xbfb3a1));
-  add(new THREE.BoxGeometry(0.06, 0.04, 0.4), -5.55, 1.86, 0, dark);
+  add(alongX(new THREE.CylinderGeometry(1, 1, 6, 32)), -1, 0.9, 0).scale.set(1, 0.7, 1.5);
+  const chest = add(new THREE.SphereGeometry(1, 32, 20), -3.9, 0.9, 0); chest.scale.set(0.9, 0.7, 1.5);
+  const hips = add(new THREE.SphereGeometry(1, 32, 20), 2.1, 0.9, 0); hips.scale.set(0.9, 0.7, 1.4);
+  add(alongX(new THREE.CylinderGeometry(0.4, 0.45, 0.7, 20)), -5.0, 0.8, 0);
+  add(new THREE.SphereGeometry(0.85, 32, 24), -5.95, 1.05, 0).scale.set(1.1, 0.95, 0.9);
   for (const sz of [-1, 1]) {
-    add(new THREE.SphereGeometry(0.5, 7, 5), -3.7, 1.0, sz * 1.8);                                   // shoulder joint
-    add(alongX(new THREE.CylinderGeometry(0.4, 0.34, 3.4, 7)), -2.0, 0.7, sz * 1.95);                  // arm at the side, resting on pad
-    add(alongX(new THREE.CylinderGeometry(0.33, 0.27, 2.6, 7)), 0.9, 0.6, sz * 1.95);                  // forearm
-    add(new THREE.BoxGeometry(0.9, 0.2, 0.55), 2.5, 0.43, sz * 1.95);                                   // hand
-    add(alongX(new THREE.CylinderGeometry(0.62, 0.45, 6.6, 7)), 5.5, 0.82, sz * 0.8);                  // leg
+    add(new THREE.SphereGeometry(0.5, 20, 14), -3.7, 1.0, sz * 1.8);
+    add(alongX(new THREE.CylinderGeometry(0.4, 0.34, 3.4, 20)), -2.0, 0.7, sz * 1.95);
+    add(alongX(new THREE.CylinderGeometry(0.33, 0.27, 2.6, 20)), 0.9, 0.6, sz * 1.95);
+    add(new THREE.CapsuleGeometry(0.24, 0.5, 6, 16), 2.5, 0.45, sz * 1.95).rotation.z = Math.PI / 2;
+    add(alongX(new THREE.CylinderGeometry(0.62, 0.45, 6.6, 24)), 5.5, 0.82, sz * 0.8);
   }
   g.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
-  const skinY = 1.8; // drape level (torso top is at 1.6, leaving room for the cavity)
+  const skinY = 1.8;
   g.userData = { abdomen: new THREE.Vector3(-0.5, skinY, 0), skinY, torsoHalfWidth: 1.5, rightForearm: new THREE.Vector3(0.9, 0.6, 1.95), kind: 'dummy' };
   return g;
 }
 
-/** makeDrapeWithWindow(w=6,h=5, winW=2.8, winH=2.2) -> {mesh, windowCenter, windowSize, prep, cavity, cavityY}.
- *  Drape follows the body contour (droops over the sides). Mesh local y=0 is skin level: set mesh.position to dummy.userData.abdomen.
- *  Window shows a shallow dark-rimmed cavity (floor at local y=cavityY, organs rest there); `prep` is a tan skin-prep patch covering it (visible by default;
- *  hide it when the incision opens the cavity). */
+/** makeDrapeWithWindow(w,h, winW=2.8, winH=2.2) -> {mesh, windowCenter, windowSize, prep, cavity, cavityY}.
+ *  Full-body blue OR drape (neck -> past the feet, hangs over the table sides, rises into an anaesthesia screen at the head),
+ *  with a fenestration at the abdomen. Mesh local y=0 is skin level: set mesh.position = dummy.userData.abdomen.
+ *  `prep` = Betadine-prepped skin covering the window (hide it when the cavity opens); cavity floor at local y=cavityY. */
 export function makeDrapeWithWindow(w = 6, h = 5, winW = 2.8, winH = 2.2) {
-  const nx = 48, nz = 40, pos = [], idx = [], rim = 0.12;
-  const prof = (z, x) => { const az = Math.abs(z), ax = Math.abs(x);
-    let y = az < 1.5 ? rim : az < 2.3 ? rim - 0.77 * ((az - 1.5) / 0.8) ** 1.5 : -0.65 - (az - 2.3) * 1.2;
-    if (ax > 2.2) y -= (ax - 2.2) * 0.8; return y; };
-  for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) { const x = -w / 2 + w * i / nx, z = -h / 2 + h * j / nz; pos.push(x, prof(z, x), z); }
-  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
-    const cx = -w / 2 + w * (i + 0.5) / nx, cz = -h / 2 + h * (j + 0.5) / nz;
-    if (Math.abs(cx) < winW / 2 && Math.abs(cz) < winH / 2) continue; // window
-    const a = j * (nx + 1) + i, b = a + 1, c = a + nx + 1, d = c + 1; idx.push(a, c, b, b, c, d);
-  }
-  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setIndex(idx); geo.computeVertexNormals();
-  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0x2f8f74, flatShading: true, roughness: 0.9, side: THREE.DoubleSide }));
-  mesh.receiveShadow = true; mesh.castShadow = true; mesh.name = 'DrapeWindow';
-  // cavity: dark-rimmed shallow recess
+  const rim = 0.12, hem = 0.025;
+  const heightFn = (x, z) => {
+    const az = Math.abs(z);
+    const top = rim + hem - 0.45 * sstep(2.5, 4.2, x);                                   // torso -> legs
+    let y = top - (top + 1.0) * sstep(Math.max(winH / 2, 1.0), 2.7, az) ** 1.4;           // over flanks/arms
+    y = Math.min(y, -1.55 + 0.8 * (1 - sstep(2.6, 3.0, az)) + 0.8);                       // rest on the pad
+    y -= 2.6 * sstep(3.15, 3.75, az);                                                       // hang over the table edge
+    y = Math.max(y, -4.2);
+    y += 2.9 * sstep(-4.2, -4.75, x);                                                       // anaesthesia screen
+    return y;
+  };
+  const mesh = buildDrape({ W: 20.4, D: 8.2, nx: 200, nz: 96, heightFn, winW, winH, foldAmp: 0.07, uvScale: 1.6 });
+  mesh.name = 'DrapeWindow';
+  mesh.add(windowHem(winW, winH, rim + 0.008, 0.03, 0.06));
+  // screen bar
+  const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 8.4, 16), steel(0.3)); bar.rotation.x = Math.PI / 2; bar.position.set(-4.75, 2.98, 0); mesh.add(bar);
+  // cavity: incised skin edge -> yellow subcutaneous fat -> moist peritoneal floor
   const cavityY = -0.06, cavity = new THREE.Group(); cavity.name = 'cavity';
-  const tex = canvasTex(256, 256, (c, W, H) => { const gr = c.createRadialGradient(W / 2, H / 2, W * 0.15, W / 2, H / 2, W * 0.75); gr.addColorStop(0, '#d79a8a'); gr.addColorStop(0.7, '#a86a62'); gr.addColorStop(1, '#4a2a2c'); c.fillStyle = gr; c.fillRect(0, 0, W, H); });
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(winW, winH), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9 })); floor.rotation.x = -Math.PI / 2; floor.position.y = cavityY; floor.receiveShadow = true; cavity.add(floor);
-  const wallMat = new THREE.MeshStandardMaterial({ color: 0x5a3335, flatShading: true, roughness: 1 }), wh = rim - cavityY;
+  const td = tissueDetail();
+  const tex = canvasTex(256, 256, (c, W, H) => { const gr = c.createRadialGradient(W / 2, H / 2, W * 0.1, W / 2, H / 2, W * 0.72); gr.addColorStop(0, '#d89a8e'); gr.addColorStop(0.75, '#b8746c'); gr.addColorStop(1, '#6e3a38'); c.fillStyle = gr; c.fillRect(0, 0, W, H); });
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(winW, winH), new THREE.MeshStandardMaterial({ map: tex, normalMap: td.normal, roughnessMap: td.rough, roughness: 1, metalness: 0 }));
+  floor.rotation.x = -Math.PI / 2; floor.position.y = cavityY; floor.receiveShadow = true; cavity.add(floor);
+  const fatMat = new THREE.MeshStandardMaterial({ color: 0xe2bd72, normalMap: td.normal, roughness: 0.45, metalness: 0 }), wh = rim - cavityY;
   for (const [sx, sz, len, ry] of [[0, -1, winW, 0], [0, 1, winW, 0], [-1, 0, winH, Math.PI / 2], [1, 0, winH, Math.PI / 2]]) {
-    const wall = new THREE.Mesh(new THREE.BoxGeometry(len, wh, 0.05), wallMat); wall.rotation.y = ry;
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(len, wh, 0.05), fatMat); wall.rotation.y = ry;
     wall.position.set(sx * winW / 2, cavityY + wh / 2, sz * winH / 2); cavity.add(wall); }
   mesh.add(cavity);
-  const prep = new THREE.Mesh(new THREE.PlaneGeometry(winW, winH), new THREE.MeshStandardMaterial({ color: 0xd9b88a, flatShading: true, roughness: 0.8 }));
-  prep.rotation.x = -Math.PI / 2; prep.position.y = rim - 0.01; mesh.add(prep); mesh.userData.prep = prep;
+  const prep = new THREE.Mesh(new THREE.PlaneGeometry(winW + 0.08, winH + 0.08), prepSkinMaterial(winW + 0.08, winH + 0.08));
+  prep.rotation.x = -Math.PI / 2; prep.position.y = rim - 0.01; prep.receiveShadow = true; mesh.add(prep); mesh.userData.prep = prep;
+  mesh.traverse((m) => { if (m.isMesh) m.receiveShadow = true; });
   return { mesh, prep, cavity, cavityY, windowCenter: new THREE.Vector3(0, 0, 0), windowSize: { w: winW, h: winH } };
 }
+/** shared Betadine-prepped skin material for a winW x winH patch (SURGERY: use for the skin halves instead of a flat tan). */
+export function prepSkinMaterial(w = 2.8, h = 2.2) { const k = 'prep' + w + 'x' + h; return mats[k] ||= makeSkinMaterial({ w, h, prep: true, repeat: 3 }); }
 
 function tubeAlong(pts, r, mat, seg = 6) { return new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(V3)), pts.length * 6, r, seg), mat); }
-const smooth = (color, extra = {}) => flat(color, { flatShading: false, roughness: 0.6, ...extra });
+const smooth = (color, extra = {}) => { const t = tissueDetail(); return new THREE.MeshStandardMaterial({ color, map: t.map, normalMap: t.normal, normalScale: new THREE.Vector2(0.35, 0.35), roughnessMap: t.rough, roughness: 1, metalness: 0, envMapIntensity: 0.9, ...extra, ...(extra.roughness !== undefined ? { roughness: Math.min(1, extra.roughness * 1.6) } : {}) }); };
 const ss = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 /** Haustrated colon segment along Z (z from z0 to z1) at axis height y, gentle lateral bend; with 3 taeniae coli and small epiploic fat appendages. */
 function colonSegment(z0, z1, y, x0 = 0, bendAmp = 0.08) {
-  const g = new THREE.Group(), len = z1 - z0, mat = smooth(0xdcb18f, { roughness: 0.55 });
+  const g = new THREE.Group(), len = z1 - z0, mat = smooth(0xd8a68e, { roughness: 0.55 });
   const bend = (z) => x0 + bendAmp * Math.sin((z - z0) / len * Math.PI);
   const prof = [];
   for (let i = 0; i <= 48; i++) { const z = len * i / 48; const cap = Math.min(1, Math.sqrt(Math.max(0, Math.min(z, len - z) / 0.12)));
@@ -479,7 +531,7 @@ function colonSegment(z0, z1, y, x0 = 0, bendAmp = 0.08) {
     const pts = []; for (let i = 0; i <= 24; i++) { const z = z0 + 0.1 + (len - 0.2) * i / 24; pts.push(new THREE.Vector3(bend(z) + 0.268 * Math.cos(ang), y + 0.268 * Math.sin(ang), z)); }
     g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 0.017, 6), tm));
   }
-  const fat = smooth(0xf2d27c);
+  const fat = smooth(0xe8c66e);
   [[0.3, 0.6], [0.55, 2.4], [0.8, 4.0], [0.4, 5.3]].forEach(([t, ang], i) => { const z = z0 + len * (0.15 + 0.7 * t + 0.02 * i), e = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), fat);
     e.scale.set(1, 0.7, 1.5); e.position.set(bend(z) + 0.29 * Math.cos(ang), y + 0.29 * Math.sin(ang), z); g.add(e); });
   return g;
@@ -492,12 +544,12 @@ export function makeOrgan(kind = 'appendix') {
   let anchor = new THREE.Vector3(), radius = 0.2, extra = {};
   if (kind === 'appendix') {
     // cecum (rounded pouch) with ascending colon continuing up (-Z), terminal ileum entering from the left (-X), appendix off the posteromedial wall
-    const cec = new THREE.Mesh(new THREE.SphereGeometry(0.5, 28, 18), smooth(0xdcb18f, { roughness: 0.55 })); cec.position.set(-0.95, 0.25, 0.4); cec.scale.set(1, 0.8, 1.05); g.add(cec);
+    const cec = new THREE.Mesh(new THREE.SphereGeometry(0.5, 28, 18), smooth(0xd8a68e, { roughness: 0.55 })); cec.position.set(-0.95, 0.25, 0.4); cec.scale.set(1, 0.8, 1.05); g.add(cec);
     g.add(colonSegment(-1.2, 0.35, 0.25, -0.95, 0.04));
     const il = tubeAlong([{ x: -2.1, y: 0.18, z: 1.1 }, { x: -1.75, y: 0.2, z: 0.8 }, { x: -1.4, y: 0.24, z: 0.42 }], 0.1, smooth(0xe9a698), 12); g.add(il);
     const jn = new THREE.Mesh(new THREE.TorusGeometry(0.115, 0.03, 8, 16), smooth(0xcf8f82)); jn.position.set(-1.43, 0.24, 0.42); jn.lookAt(-1.43 + 1, 0.24 - 0.12, 0.42 - 0.35); g.add(jn);
     const pts = [{ x: -0.55, y: 0.14, z: 0.3 }, { x: -0.2, y: 0.17, z: 0.05 }, { x: 0.25, y: 0.17, z: 0.18 }, { x: 0.65, y: 0.15, z: -0.05 }];
-    const curve = new THREE.CatmullRomCurve3(pts.map(V3)), pm = smooth(0xee9a90, { roughness: 0.5 });
+    const curve = new THREE.CatmullRomCurve3(pts.map(V3)), pm = smooth(0xd98078, { roughness: 0.5 });
     const ap = new THREE.Mesh(new THREE.TubeGeometry(curve, 48, 0.09, 12), pm); g.add(ap);
     const tip = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 10), pm); tip.position.copy(curve.getPoint(1)); g.add(tip);
     // mesoappendix fan + appendicular artery on its free edge
@@ -505,15 +557,15 @@ export function makeOrgan(kind = 'appendix') {
     for (let i = 0; i <= N; i++) { const t = i / N, c = curve.getPoint(t), w = 0.38 * (1 - 0.75 * t); fv.push(c.x, c.y - 0.05, c.z, c.x + 0.04 * t, 0.03, c.z + w); edge.push(new THREE.Vector3(c.x + 0.04 * t, 0.035, c.z + w * 0.97));
       if (i < N) { const k = i * 2; fi.push(k, k + 1, k + 2, k + 1, k + 3, k + 2); } }
     const fg = new THREE.BufferGeometry(); fg.setAttribute('position', new THREE.Float32BufferAttribute(fv, 3)); fg.setIndex(fi); fg.computeVertexNormals();
-    g.add(new THREE.Mesh(fg, smooth(0xf4dcae, { side: THREE.DoubleSide, roughness: 0.7 })));
+    g.add(new THREE.Mesh(fg, smooth(0xecd09a, { side: THREE.DoubleSide, roughness: 0.7 })));
     g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(edge), 40, 0.014, 6), smooth(0xb02e32, { roughness: 0.4 })));
     anchor.set(0.2, 0.17, 0.15); radius = 0.15; extra.base = new THREE.Vector3(-0.55, 0.14, 0.3); extra.curve = curve; g.scale.setScalar(0.75);
   } else if (kind === 'colon') {
     g.add(colonSegment(-1.2, 1.2, 0.25, 0, 0.12));
-    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.3, 20, 14), smooth(0xdcb18f)); cap.position.set(0, 0.25, 1.28); cap.scale.set(1, 0.9, 0.9); g.add(cap);
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.3, 20, 14), smooth(0xd8a68e)); cap.position.set(0, 0.25, 1.28); cap.scale.set(1, 0.9, 0.9); g.add(cap);
     anchor.set(0, 0.25, -0.95); radius = 0.27; g.scale.setScalar(0.55);
   } else if (kind === 'gallbladder') {
-    const m = smooth(0x6f9d4a, { roughness: 0.35, clearcoat: 0.5 });
+    const m = smooth(0x5f7f3e, { roughness: 0.35 });
     // pear-shaped sac along X: fundus (x<0) -> body -> neck (x>0)
     const prof = []; for (let i = 0; i <= 40; i++) { const t = i / 40, x = -0.5 + 1.05 * t; const r = 0.33 * Math.sin(Math.PI * Math.pow(t, 0.8)) ** 0.7 * (1 - 0.65 * ss(0.5, 1, t)) + 0.045 * ss(0.8, 1, t); prof.push([x, Math.max(r, 0.001)]); }
     const sac = new THREE.Mesh(new THREE.LatheGeometry(prof.map(([x, r]) => new THREE.Vector2(r, x)), 28), m); sac.geometry.rotateZ(-Math.PI / 2); sac.scale.set(1, 0.8, 0.85); g.add(sac);
@@ -521,7 +573,7 @@ export function makeOrgan(kind = 'appendix') {
     g.add(tubeAlong([{ x: 0.55, y: 0, z: 0 }, { x: 0.72, y: 0.03, z: 0.06 }, { x: 0.95, y: 0.06, z: 0.1 }], 0.035, dm, 10));            // cystic duct
     g.add(tubeAlong([{ x: 1.25, y: 0.07, z: -0.6 }, { x: 1.05, y: 0.065, z: -0.2 }, { x: 0.95, y: 0.06, z: 0.1 }], 0.045, dm, 10));        // common hepatic duct
     g.add(tubeAlong([{ x: 0.95, y: 0.06, z: 0.1 }, { x: 0.9, y: 0.05, z: 0.45 }, { x: 0.85, y: 0.04, z: 0.85 }], 0.05, dm, 10));          // common bile duct
-    const lobe = new THREE.Mesh(new THREE.SphereGeometry(1, 28, 16), smooth(0x7d2f2b, { roughness: 0.3, clearcoat: 0.6 })); lobe.scale.set(1.0, 0.2, 0.55); lobe.position.set(-0.15, 0.3, -0.5); g.add(lobe); // underside of right liver lobe
+    const lobe = new THREE.Mesh(new THREE.SphereGeometry(1, 28, 16), smooth(0x7d2f2b, { roughness: 0.3 })); lobe.scale.set(1.0, 0.2, 0.55); lobe.position.set(-0.15, 0.3, -0.5); g.add(lobe); // underside of right liver lobe
     anchor.set(0.9, 0.05, 0.1); radius = 0.38;
   } else if (kind === 'liver') {
     const geo = new THREE.SphereGeometry(1, 48, 28), pa = geo.attributes.position;
@@ -529,13 +581,13 @@ export function makeOrgan(kind = 'appendix') {
     for (let i = 0; i < pa.count; i++) { const x = pa.getX(i), y = pa.getY(i), z = pa.getZ(i);
       pa.setXYZ(i, x * 1.9 + 0.15, y > 0 ? y * 0.5 * sy(x) : y * 0.12 * sy(x), z * 0.95 * sz(x) - (y < 0 ? 0 : 0)); }
     geo.computeVertexNormals();
-    g.add(new THREE.Mesh(geo, smooth(0x7a2b27, { roughness: 0.28, clearcoat: 0.7, clearcoatRoughness: 0.25 })));
+    g.add(new THREE.Mesh(geo, smooth(0x7a2b27, { roughness: 0.28 })));
     const fx = -0.2 * 1.9 + 0.15, fp = []; for (let i = 0; i <= 20; i++) { const z = -0.55 + 1.1 * i / 20, xs = (fx - 0.15) / 1.9; const zz = z / (0.95 * sz(xs)); fp.push(new THREE.Vector3(fx, 0.5 * sy(xs) * Math.sqrt(Math.max(0, 1 - xs * xs - zz * zz)) + 0.006, z)); }
     g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(fp), 30, 0.025, 6), smooth(0xd7b69a)));
     anchor.set(0, 0.4, 0); radius = 1;
   } else if (kind === 'artery') {
     const pts = [{ x: -1.6, y: 0.1, z: 0.12 }, { x: -0.8, y: 0.12, z: -0.08 }, { x: 0.3, y: 0.1, z: 0.1 }, { x: 1.2, y: 0.12, z: -0.05 }, { x: 1.7, y: 0.1, z: 0.1 }];
-    g.add(tubeAlong(pts, 0.1, smooth(0xa52a30, { roughness: 0.3, clearcoat: 0.8, clearcoatRoughness: 0.2, sheen: 0.4 }), 20));
+    g.add(tubeAlong(pts, 0.1, smooth(0xa52a30, { roughness: 0.3 }), 20));
     extra.curve = new THREE.CatmullRomCurve3(pts.map(V3)); anchor.set(0.3, 0.1, 0.15); radius = 0.1;
   } else throw new Error('makeOrgan: unknown kind ' + kind);
   g.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
@@ -583,8 +635,8 @@ export function makeVitalsMonitor() {
 export function makeForearm() {
   const g = new THREE.Group(); g.name = 'Forearm';
   const R = 0.9;
-  const arm = new THREE.CylinderGeometry(0.7, 0.95, 5, 8); arm.rotateZ(Math.PI / 2); // wrist at -? thin end at +X (hand)
-  const m1 = new THREE.Mesh(arm, skin()); m1.position.set(0, R * 0.9, 0); m1.scale.set(1, 0.9, 1); g.add(m1);
+  const arm = new THREE.CylinderGeometry(0.7, 0.95, 5, 40); arm.rotateZ(Math.PI / 2); // wrist at -? thin end at +X (hand)
+  const armSkin = makeSkinMaterial({ w: 5, h: 3, prep: true, repeat: 2 }); const m1 = new THREE.Mesh(arm, armSkin); m1.position.set(0, R * 0.9, 0); m1.scale.set(1, 0.9, 1); g.add(m1);
   const hand = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.35, 1.2), skin()); hand.position.set(3.2, 0.5, 0); g.add(hand);
   for (let i = 0; i < 4; i++) { const f = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.2, 0.22), skin()); f.position.set(4.2, 0.45, -0.45 + i * 0.3); g.add(f); }
   const th = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.2, 0.25), skin()); th.position.set(3.5, 0.42, 0.75); th.rotation.y = -0.5; g.add(th);

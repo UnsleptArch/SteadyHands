@@ -13,7 +13,7 @@ export function buildRoom(scene, art = {}) {
 
   const floor = new THREE.Mesh(
     new THREE.PlaneGeometry(600, 600),
-    new THREE.MeshStandardMaterial({ color: 0x1a2024, roughness: 0.85, metalness: 0.05 })
+    new THREE.MeshStandardMaterial({ color: 0x15191c, roughness: 0.55, metalness: 0.1 })
   );
   floor.rotation.x = -Math.PI / 2;
   floor.position.y = -90;
@@ -21,7 +21,7 @@ export function buildRoom(scene, art = {}) {
   cm.add(floor);
 
   // operating table: top surface at y = 0 (under the drape), steel frame under it
-  const steel = new THREE.MeshStandardMaterial({ color: 0x9aa4ad, roughness: 0.3, metalness: 0.9 });
+  const steel = new THREE.MeshStandardMaterial({ color: 0xa9b1b8, roughness: 0.3, metalness: 1 });
   const top = new THREE.Mesh(new THREE.BoxGeometry(110, 4, 64), steel);
   top.position.y = -3;
   top.castShadow = top.receiveShadow = true;
@@ -44,7 +44,7 @@ export function buildRoom(scene, art = {}) {
   }
   if (!drape) {
     drape = new THREE.Mesh(new THREE.PlaneGeometry(11.4, 6.8),
-      new THREE.MeshStandardMaterial({ color: 0x1f5a4b, roughness: 0.95 }));
+      new THREE.MeshStandardMaterial({ color: 0x3e6e8e, roughness: 0.95 }));
     drape.rotation.x = -Math.PI / 2;
     drape.receiveShadow = true;
   }
@@ -58,6 +58,7 @@ export function buildRoom(scene, art = {}) {
   if (!lights) lights = defaultLights(group);
   else addLampHead(group);
 
+  addVignette();
   return { group, drape, lights, update() {} };
 }
 
@@ -125,4 +126,15 @@ function defaultLights(group) {
   fill.position.set(-4, 3, -3);
   group.add(fill);
   return { hemi, spot, fill, head };
+}
+
+// LOOK: gentle screen-space vignette (DOM overlay above the canvas, below the UI)
+function addVignette() {
+  if (typeof document === 'undefined' || document.getElementById('sh-vignette')) return;
+  const v = document.createElement('div');
+  v.id = 'sh-vignette';
+  v.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:0;' +
+    'background:radial-gradient(ellipse 75% 70% at 50% 48%, rgba(0,0,0,0) 55%, rgba(0,0,0,0.38) 100%);';
+  const ui = document.getElementById('ui');
+  if (ui && ui.parentNode) ui.parentNode.insertBefore(v, ui); else document.body.appendChild(v);
 }
