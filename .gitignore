@@ -3,3 +3,6 @@ node_modules/
 .venv/
 __pycache__/
 tests/artifacts/
+CLAUDE.md
+**/CLAUDE.md
+.claude/
