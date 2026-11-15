@@ -37,7 +37,7 @@ async function boot() {
       let metrics = s.metrics;
       const c = engine.currentLevel && engine.currentLevel.controller;
       if (!metrics && c && c.metrics) { try { metrics = c.metrics(); } catch { /* ignore */ } }
-      return { level: s.level, progress: s.progress, hint: s.hint, metrics, grade: s.grade, done: s.done, paused: engine.paused, error: s.error };
+      return { level: s.level, progress: s.progress, focus: engine.input.focus, steady: engine.input.steady, hint: s.hint, metrics, grade: s.grade, done: s.done, paused: engine.paused, error: s.error };
     },
     menu() {
       engine.unloadLevel();
@@ -72,7 +72,7 @@ async function boot() {
 function fallbackMenu(root, engine, game) {
   const el = document.createElement('div');
   el.id = 'core-menu';
-  el.style.cssText = 'position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;' +
+  el.style.cssText = 'position:fixed;inset:0;pointer-events:auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;' +
     'font-family:Inter,system-ui,sans-serif;color:#e8edf2;background:rgba(6,8,11,.55);z-index:10';
   el.innerHTML = '<h1 style="font-weight:600;letter-spacing:.02em;margin:0 0 8px">Steady Hands</h1>' +
     '<p style="opacity:.7;margin:0 0 12px">Surgical skills trainer</p>';
@@ -97,7 +97,7 @@ function fallbackMenu(root, engine, game) {
 boot().catch((err) => {
   console.error('[core] boot failed', err);
   const el = document.createElement('div');
-  el.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:#ffd7d7;background:#0b0d10;font:15px/1.5 Inter,system-ui,sans-serif;padding:24px;white-space:pre-wrap';
+  el.style.cssText = 'position:fixed;inset:0;pointer-events:auto;display:flex;align-items:center;justify-content:center;color:#ffd7d7;background:#0b0d10;font:15px/1.5 Inter,system-ui,sans-serif;padding:24px;white-space:pre-wrap';
   el.textContent = 'Steady Hands failed to start:\n' + (err && (err.stack || err.message) || err);
   document.body.appendChild(el);
 });
