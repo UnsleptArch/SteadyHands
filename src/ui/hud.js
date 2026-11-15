@@ -30,6 +30,12 @@ const CONTENT = new URL('../../content/', import.meta.url);
 const prettyM = k => String(k).replace(/_mm$/, ' (mm)').replace(/([A-Z])/g, ' $1').replace(/[_-]/g, ' ').replace(/^./, c => c.toUpperCase());
 async function loadJSON(url, fb) { try { const r = await fetch(new URL(url, CONTENT)); if (!r.ok) throw 0; return await r.json(); } catch { return fb; } }
 
+// first two sentences of a brief, never cut mid-word
+function shortBrief(t) {
+  const parts = String(t).match(/[^.!?]+[.!?]+(\s|$)/g);
+  return parts ? parts.slice(0, 2).join('').trim() : String(t);
+}
+
 export function createHUD(root, engine) {
   const ev = engine.events;
   const ui = el('div', 'sh-ui'); root.appendChild(ui);
@@ -68,7 +74,7 @@ export function createHUD(root, engine) {
             <div class="sh-card-top"><span class="sh-num">0${i + 1}</span>${stars(d.difficulty || i + 1)}</div>
             <h2>${esc(d.title)}</h2>
             <div class="sh-skill">${esc(d.skill || '')}</div>
-            <p>${esc(d.brief || '')}</p>
+            <p>${esc(shortBrief(d.brief || ''))}</p>
             <span class="sh-go">Start drill</span>
           </button>`).join('')}
         </div>

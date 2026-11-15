@@ -14,7 +14,7 @@ h2{margin:0;font-weight:700}h3{margin:0 0 10px;font-size:16px;color:var(--accent
 .sh-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-bottom:36px}
 .sh-card{all:unset;box-sizing:border-box;cursor:pointer;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:26px;display:flex;flex-direction:column;gap:8px;transition:border-color .15s,transform .15s}
 .sh-card:hover,.sh-card:focus-visible{border-color:var(--accent);transform:translateY(-3px)}
-.sh-card h2{font-size:34px}.sh-card p{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;margin:6px 0 12px;color:var(--mut);font-size:17px;line-height:1.45;flex:1}
+.sh-card h2{font-size:34px}.sh-card p{margin:6px 0 12px;color:var(--mut);font-size:16px;line-height:1.45;flex:1}
 .sh-card-top{display:flex;justify-content:space-between;align-items:center}
 .sh-num{color:var(--mut);font-weight:600;font-size:16px}
 .sh-skill{color:var(--accent);font-size:16px;font-weight:500}

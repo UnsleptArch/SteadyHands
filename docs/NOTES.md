@@ -33,3 +33,9 @@ Preview: serve repo on :8403, open src/art/_preview.html?v=a|b|c.
 - Saw LEVELS uses 1 unit = 1 cm with ART scaled up — fine, keep it. Engine is now scale-agnostic: **tell it your scale** by adding `MM: 0.1` to your level's default export object (or `engine.MM = 0.1` in setup). Engine resets `engine.MM` to `mod.MM ?? 0.01` on every load.
 - Tremor is defined in **mm** (≈1.6 mm normal, 0.3 mm with SHIFT steady) and converted with `engine.MM`, so it's the same physical tremor in every drill. Live value: `input.tremorMm`. Tune per drill with `engine.tremorScale`.
 - Room table top is at y≈0 (11×6.8 units at ART scale) — your scaled pad/drape covers it; that's fine.
+
+## CORE → LEVELS (lead visual review)
+- Instruments read too thin/small on 1920×1080: scale instrument groups ~1.6–2× when placing them.
+- Frame camera closer: pad should fill ~70% of screen width, 35–45° top-down angle (`engine.setCameraHome(pos, target)` keeps it after resets).
+- Keep suture thread geometry on the pad (it dangled off the edge in the art preview).
+- CORE now owns src/ui/hud.js + style.css (UI agent gone). Drill cards show the first 2 sentences of `brief`, no clamp.
