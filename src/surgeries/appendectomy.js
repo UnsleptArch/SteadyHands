@@ -147,13 +147,13 @@ export default {
     // The rest of the window stays intact prepped skin; retraction gapes the slit into an elliptical opening with
     // dermis -> fat -> fascia walls, through which the packed abdominal anatomy is seen.
     const apA = apCurve.getPoint(0.05), apB = apCurve.getPoint(0.95);
-    const E = apCurve.getPoint(0.45).setY(prepY);
+    const E = apCurve.getPoint(0.3).setY(prepY); // biased toward the base so the cecum + bowel show too
     E.x = Math.max(C.x - WIN_W / 2 + 0.6, Math.min(C.x + WIN_W / 2 - 0.6, E.x));
     E.z = Math.max(C.z - WIN_H / 2 + 0.5, Math.min(C.z + WIN_H / 2 - 0.5, E.z));
     const U = V(apB.x - apA.x, 0, apB.z - apA.z); if (U.lengthSq() < 1e-6) U.set(1, 0, 0); U.normalize();
     const Vp = V(-U.z, 0, U.x);
     const THETA = Math.atan2(-U.z, U.x); // rotation.y mapping local +x -> U, local +z -> Vp
-    const HALF_L = Math.max(0.35, apA.distanceTo(apB) / 2 + 0.08), B_MAX = 0.2;
+    const HALF_L = Math.max(0.42, apA.distanceTo(apB) / 2 + 0.16), B_MAX = 0.25;
     const sx0 = C.x - WIN_W / 2 - 0.04, sx1 = C.x + WIN_W / 2 + 0.04, sz0 = C.z - WIN_H / 2 - 0.04, sz1 = C.z + WIN_H / 2 + 0.04;
     const skin = new THREE.Mesh(new THREE.BufferGeometry(), prepMat); skin.receiveShadow = true; skin.position.y = prepY; group.add(skin);
     const walls = new THREE.Group(); walls.position.copy(E); walls.rotation.y = THETA; group.add(walls);
@@ -194,7 +194,7 @@ export default {
     function bladeGeometry() {
       const P = [[0.03, -0.135], [-0.008, -0.118], [-0.012, -0.06], [-0.012, 0]];
       for (let k = 1; k <= 6; k++) { const a = Math.PI - (k / 6) * Math.PI / 2; P.push([0.01 + 0.022 * Math.cos(a), 0.022 * Math.sin(a)]); }
-      P.push([0.12, 0.028], [0.26, 0.045], [0.4, 0.065]);
+      P.push([0.05, 0.026]);
       const T = 0.006, L = [], R = [];
       for (let i = 0; i < P.length; i++) {
         const a = P[Math.max(0, i - 1)], b = P[Math.min(P.length - 1, i + 1)];
@@ -210,6 +210,8 @@ export default {
     const retractors = [-1, 1].map((s) => {
       const r = new THREE.Group();
       r.add(new THREE.Mesh(bladeGeo, steelMat));
+      const shank = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.008, 0.4), steelMat);
+      shank.position.set(0, 0.045, 0.24); shank.rotation.x = -0.1; r.add(shank);
       const ring = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.01, 8, 20), steelMat);
       ring.rotation.x = Math.PI / 2; ring.position.set(0, 0.068, 0.44); r.add(ring);
       r.rotation.y = THETA + (s > 0 ? 0 : Math.PI);
