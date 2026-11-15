@@ -181,7 +181,8 @@ export function createEngine(canvas, opts = {}) {
     plane.constant = 0;
     camHome.pos.copy(CAM_DEFAULT.pos); camHome.target.copy(CAM_DEFAULT.target); engine.resetCamera();
     engine.tremorScale = 1;
-    engine.MM = typeof mod.MM === 'number' ? mod.MM : DEFAULT_MM;
+    // drills in src/levels are authored at 1 unit = 1 cm; ART/surgeries at 1 unit = 10 cm
+    engine.MM = typeof mod.MM === 'number' ? mod.MM : (LEVEL_IDS.includes(id) ? 0.1 : DEFAULT_MM);
     engine.botNoTremor = false;
     botPointer = null; botDown = null;
     input.focus = 1;

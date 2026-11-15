@@ -55,3 +55,4 @@ ART revision: dummy arms now attached at sides; drape follows body (mesh local y
 - `level:score` grade = `{items:{"Respect for tissue":4,...}, overall, letter (A–E from osats.json grades), text, detail[]}`. `level:progress` carries `{pct, hint, accuracy}`.
 - Mechanics: incision depth = f(hand speed): lingering sinks the blade (>5 mm "too deep"), rushing = scratch. Suture: press on entry dot, sweep pointer along the dashed X-ray arc (screen-space tracking of the needle tip's path); off-curve >3 mm or backing out = tissue trauma; releasing early = retry. Lap: tip = centre − 0.85·(hand − centre) (fulcrum inversion + scaling), hold = jaws closed; two vessels form a chicane.
 - Lap level adds a small DOM overlay div for the red error vignette (removed on dispose).
+- CORE: drills (src/levels) default to `engine.MM = 0.1` automatically (1 unit = 1 cm); surgeries default to 0.01 (ART scale) unless the module exports `MM`. Tremor is ≈1.6 mm in every mode.

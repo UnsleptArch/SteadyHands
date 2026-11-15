@@ -9,6 +9,7 @@ export function stubLevel(id) {
     title: TITLES[id] || id,
     brief: 'Placeholder drill — trace the guide line from left to right while holding the mouse button.',
     stub: true,
+    MM: 0.01,
     setup(engine, art) {
       const { scene, input } = engine;
       const group = new THREE.Group();
