@@ -272,7 +272,7 @@ export function traceGuide(S, { pts, y, tolMm = 4, onCut, onDone }) {
   const g = new THREE.Group(); S.group.add(g);
   const pl = polyline(pts.map((p) => p.clone().setY(y)));
   const L = pl.length;
-  const guide = new Ribbon(200, y + 0.002, new THREE.MeshBasicMaterial({ vertexColors: true, depthWrite: false, transparent: true, opacity: 0.95 }));
+  const guide = new Ribbon(200, y + 0.002, new THREE.MeshBasicMaterial({ vertexColors: true, depthWrite: false, transparent: true, opacity: 0.95, side: THREE.DoubleSide }));
   const purple = new THREE.Color(0x5a3aa0);
   const N = 40;
   for (let i = 0; i < N; i += 2) {
@@ -280,7 +280,7 @@ export function traceGuide(S, { pts, y, tolMm = 4, onCut, onDone }) {
     guide.seg(a, b, 0.013, 0.013, purple);
   }
   g.add(guide.mesh);
-  const groove = new Ribbon(3000, y + 0.004, new THREE.MeshBasicMaterial({ vertexColors: true }));
+  const groove = new Ribbon(3000, y + 0.004, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
   g.add(groove.mesh);
   const start = makeDot(0.04, 0x2fbf71, y + 0.005); start.position.x = pts[0].x; start.position.z = pts[0].z;
   const startRing = makeRing(0.06, 0.075, 0x2fbf71, y + 0.005, 0.8); startRing.position.copy(start.position);

@@ -43,7 +43,7 @@ export default {
     const nrm = V(-dir.z, 0, dir.x);
 
     let monitor = call(art, 'makeVitalsMonitor');
-    if (monitor && monitor.mesh) { monitor.mesh.position.set(-3.4, 0, -3.6); monitor.mesh.rotation.y = 0.35; group.add(monitor.mesh); }
+    if (monitor && monitor.mesh) { monitor.mesh.position.set(W.x - 2.6, skinY - 2.4, W.z - 2.0); monitor.mesh.rotation.y = 0.5; group.add(monitor.mesh); }
     else monitor = null;
 
     // instrument tray (Mayo stand) at skin height beside the arm: gauze + dressing live here
@@ -63,7 +63,7 @@ export default {
       {
         title: 'Clean the wound', tool: null, plane: skinY,
         instr: 'Hold the mouse and rub the gauze over the debris until the skin is clean.',
-        cam: closeCam(3.0, 2.4),
+        cam: closeCam(2.1, 1.5),
         start(S) {
           const specks = [];
           let s = 7;
@@ -83,7 +83,7 @@ export default {
       {
         title: 'Numb the area', tool: 'syringe', plane: skinY,
         instr: 'Local anaesthetic: press and HOLD on each blue marker until the ring fills. Keep the needle still.',
-        cam: closeCam(2.8, 2.3),
+        cam: closeCam(1.9, 1.35),
         start(S) {
           const targets = [
             w0.clone().addScaledVector(dir, -0.18), w1.clone().addScaledVector(dir, 0.18),
@@ -95,7 +95,7 @@ export default {
       {
         title: 'Close with 3 interrupted sutures', tool: 'driver', plane: skinY,
         instr: 'For each stitch: press on the teal dot, drag across the wound, release on the purple dot.',
-        cam: closeCam(2.8, 2.3),
+        cam: closeCam(1.9, 1.35),
         start(S) {
           S.info('Area numb — patient comfortable');
           return sutureBites(S, { pairs, y: skinY + 0.006, radius: 0.08, onStitch(i) { setClosed((i + 1) / pairs.length); } });
@@ -104,14 +104,14 @@ export default {
       {
         title: 'Apply the dressing', tool: null, plane: skinY,
         instr: 'Drag the dressing from the tray and drop it centred on the closed wound.',
-        cam: { pos: [W.x + 0.2, skinY + 3.6, W.z + 3.4], target: [W.x, skinY - 0.1, W.z + 0.7] },
+        cam: { pos: [W.x + 0.2, skinY + 2.9, W.z + 2.9], target: [W.x, skinY - 0.1, W.z + 0.8] },
         start(S) { return dragDrop(S, { obj: dressing, target: W.clone(), y: skinY + 0.01, radius: 0.14, label: 'Wound dressed' }); },
       },
     ];
 
     const controller = createSurgery({
       id: ID, engine, art, group, steps, monitor, parTime: 55,
-      wideCam: { pos: [W.x + 2.6, skinY + 4.6, W.z + 6.2], target: [W.x - 0.6, skinY - 0.4, W.z] },
+      wideCam: { pos: [W.x + 0.9, skinY + 3.2, W.z + 3.4], target: [W.x - 0.7, skinY, W.z - 0.4] },
       summary: { title: 'Patient stable — home today', sub: 'Wound cleaned, anaesthetised, closed with 3 sutures and dressed. Stitches out in 10 days.' },
     });
     return controller;

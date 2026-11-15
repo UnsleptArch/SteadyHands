@@ -53,7 +53,7 @@ export default {
     const C = V(abdomen.x, prepY, abdomen.z); // window centre at skin level
 
     // skin halves (split along the incision line, z = C.z)
-    const prepMat = new THREE.MeshStandardMaterial({ color: 0xd9b88a, flatShading: true, roughness: 0.8 });
+    const prepMat = (artPrep && artPrep.material) || new THREE.MeshStandardMaterial({ color: 0xd9b88a, flatShading: true, roughness: 0.8 });
     const halves = [-1, 1].map((s) => {
       const geo = new THREE.PlaneGeometry(WIN_W, WIN_H / 2); geo.rotateX(-Math.PI / 2); geo.translate(0, 0, -s * WIN_H / 4); // edge at local z=0, extends outward
       const m = new THREE.Mesh(geo, prepMat); m.receiveShadow = true;
@@ -113,7 +113,7 @@ export default {
     const findRing = makeRing(0.1, 0.125, 0x3ec5b5, 0, 0); findRing.material.depthTest = false; findRing.renderOrder = 9; group.add(findRing);
 
     let monitor = call(art, 'makeVitalsMonitor');
-    if (monitor && monitor.mesh) { monitor.mesh.position.set(-3.6, 0, -4.3); monitor.mesh.rotation.y = 0.35; group.add(monitor.mesh); }
+    if (monitor && monitor.mesh) { monitor.mesh.position.set(C.x - 2.5, prepY - 2.3, C.z - 2.2); monitor.mesh.rotation.y = 0.5; group.add(monitor.mesh); }
     else monitor = null;
 
     // ---------------- retractor props ----------------
@@ -141,13 +141,13 @@ export default {
       {
         title: 'Mark & incise the right lower quadrant', tool: 'scalpel', plane: prepY,
         instr: 'Press on the green dot and draw the blade along the purple marker line. Hold SHIFT to steady.',
-        cam: closeCam(0, 0, 3.4, 2.7),
+        cam: closeCam(0, 0.05, 2.3, 1.45),
         start(S) { incMech = traceGuide(S, { pts: incPts, y: prepY + 0.006, tolMm: 4 }); return incMech; },
       },
       {
         title: 'Retract the wound edges', tool: null, plane: prepY + 0.04,
         instr: 'Grab each white handle ring and pull the retractor out to its teal target.',
-        cam: closeCam(0, 0.1, 3.3, 2.7),
+        cam: closeCam(0, 0.05, 2.3, 1.45),
         start(S) {
           const y = prepY + 0.04;
           retractors.forEach((r) => { r.visible = true; });
@@ -169,7 +169,7 @@ export default {
       {
         title: 'Locate & grasp the appendix', tool: 'grasper', plane: ORG_Y + 0.08,
         instr: 'Laparoscopic grasper: controls are MIRRORED (fulcrum effect). Find the appendix tip, then hold to grasp. Avoid the artery.',
-        cam: closeCam(tipFocus.x - C.x, tipFocus.z - C.z + 0.05, 2.5, 2.0),
+        cam: closeCam(tipFocus.x - C.x, tipFocus.z - C.z + 0.05, 1.8, 1.15),
         start(S) {
           const y = ORG_Y + 0.08;
           const target = apTop(0.97);
@@ -228,7 +228,7 @@ export default {
       {
         title: 'Ligate the artery & clip the base', tool: 'driver', plane: ORG_Y + 0.12,
         instr: 'Click the numbered rings in order: 1 ties off the appendicular artery, 2 clips the appendix base.',
-        cam: closeCam(apTop(0.25).x - C.x, apTop(0.25).z - C.z + 0.1, 2.2, 1.8),
+        cam: closeCam(apTop(0.25).x - C.x, apTop(0.25).z - C.z + 0.05, 1.5, 0.95),
         start(S) {
           const y = ORG_Y + 0.12;
           const a = arteryPts[Math.round(arteryPts.length * 0.15)];
@@ -249,7 +249,7 @@ export default {
       {
         title: 'Cut & remove the appendix', tool: 'scalpel', plane: ORG_Y + 0.12,
         instr: 'Cut across the appendix along the short purple line, just beyond the clip.',
-        cam: closeCam(apTop(0.3).x - C.x, apTop(0.3).z - C.z + 0.1, 2.2, 1.8),
+        cam: closeCam(apTop(0.3).x - C.x, apTop(0.3).z - C.z + 0.05, 1.5, 0.95),
         start(S) {
           const y = ORG_Y + 0.12;
           const c = apCurve.getPoint(0.32), tan = apCurve.getTangent(0.32);
@@ -268,7 +268,7 @@ export default {
       {
         title: 'Close with 3 sutures', tool: 'driver', plane: prepY,
         instr: 'Edges are approximated. For each stitch: press on the teal dot, drag across, release on the purple dot.',
-        cam: closeCam(0, 0, 3.0, 2.4),
+        cam: closeCam(0, 0.05, 2.0, 1.25),
         start(S) {
           retractors.forEach((r) => { r.visible = false; });
           if (organ) organ.visible = false;
@@ -288,7 +288,7 @@ export default {
     let disposedFlag = false;
     function removeSpecimen(S) {
       // distal appendix lifts out into the specimen dish; a short stump remains
-      const mat = flat(0xee9a90);
+      const mat = (apMeshes[0] && apMeshes[0].material) || flat(0xee9a90);
       const stumpPts = []; for (let i = 0; i <= 8; i++) stumpPts.push(apCurve.getPoint(0.3 * i / 8));
       const specPts = []; for (let i = 0; i <= 20; i++) specPts.push(apCurve.getPoint(0.34 + 0.66 * i / 20));
       const r = organ ? 0.09 * organ.scale.x : 0.07;
@@ -318,7 +318,7 @@ export default {
     if (organ) organ.visible = false; // revealed when the wound is retracted
     const controller = createSurgery({
       id: ID, engine, art, group, steps, monitor, parTime: 75,
-      wideCam: { pos: [C.x + 3.2, 6.2, C.z + 7.2], target: [C.x - 1.0, 1.4, C.z] },
+      wideCam: { pos: [C.x + 0.9, prepY + 3.4, C.z + 3.4], target: [C.x - 0.7, prepY + 0.1, C.z - 0.5] },
       summary: { title: 'Patient stable — discharged in 24 h', sub: 'Appendix removed, wound closed with 3 interrupted sutures.' },
     });
     const baseDispose = controller.dispose;
