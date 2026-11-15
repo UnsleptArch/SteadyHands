@@ -508,13 +508,14 @@ export function makeDrapeWithWindow(w = 6, h = 5, winW = 2.8, winH = 2.2) {
   const walls = new THREE.Mesh(wgeo, new THREE.MeshStandardMaterial({ map: wallTex, normalMap: td.normal, normalScale: new THREE.Vector2(0.4, 0.4), roughness: 0.42, metalness: 0 }));
   walls.receiveShadow = true; cavity.add(walls);
   mesh.add(cavity);
-  const prep = new THREE.Mesh(new THREE.PlaneGeometry(winW + 0.08, winH + 0.08), prepSkinMaterial(winW + 0.08, winH + 0.08));
+  let prepM; try { prepM = prepSkinMaterial(winW + 0.08, winH + 0.08); } catch (e) { console.warn('[art] prep skin', e); prepM = plainSkin(); }
+  const prep = new THREE.Mesh(new THREE.PlaneGeometry(winW + 0.08, winH + 0.08), prepM);
   prep.rotation.x = -Math.PI / 2; prep.position.y = rim - 0.01; prep.receiveShadow = true; mesh.add(prep); mesh.userData.prep = prep;
   mesh.traverse((m) => { if (m.isMesh) m.receiveShadow = true; });
   return { mesh, prep, cavity, cavityY, windowCenter: new THREE.Vector3(0, 0, 0), windowSize: { w: winW, h: winH } };
 }
 /** shared Betadine-prepped skin material for a winW x winH patch (SURGERY: use for the skin halves instead of a flat tan). */
-export function prepSkinMaterial(w = 2.8, h = 2.2) { const k = 'prep' + w + 'x' + h; return mats[k] ||= makeSkinMaterial({ w, h, prep: true, repeat: 3 }); }
+export function prepSkinMaterial(w = 2.8, h = 2.2) { const k = 'prep' + w + 'x' + h; try { return mats[k] ||= makeSkinMaterial({ w, h, prep: true, repeat: 3 }); } catch (e) { console.warn('[art] prepSkinMaterial', e); return plainSkin(); } }
 
 function tubeAlong(pts, r, mat, seg = 6) { return new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(V3)), pts.length * 6, r, seg), mat); }
 const smooth = (color, extra = {}) => { const t = tissueDetail(); return new THREE.MeshStandardMaterial({ color, map: t.map, normalMap: t.normal, normalScale: new THREE.Vector2(0.35, 0.35), roughnessMap: t.rough, roughness: 1, metalness: 0, envMapIntensity: 0.35, ...extra, ...(extra.roughness !== undefined ? { roughness: Math.min(1, extra.roughness * 1.6) } : {}) }); };
@@ -594,7 +595,10 @@ export function makeOrgan(kind = 'appendix') {
     extra.curve = new THREE.CatmullRomCurve3(pts.map(V3)); anchor.set(0.3, 0.1, 0.15); radius = 0.1;
   } else throw new Error('makeOrgan: unknown kind ' + kind);
   g.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
-  g.userData = { kind, anchor, radius, scale: g.scale.x, ...extra }; // anchor/curve are organ-local (group is scaled): use organ.localToWorld
+  // bounding info (organ-local, i.e. before the group's own scale): base = bottom-centre of the bbox, size = bbox extents
+  const bb = new THREE.Box3(); g.updateMatrixWorld(true); g.children.forEach((c) => bb.expandByObject(c));
+  const size = bb.getSize(new THREE.Vector3()), base = new THREE.Vector3((bb.min.x + bb.max.x) / 2, bb.min.y, (bb.min.z + bb.max.z) / 2);
+  g.userData = { kind, anchor, radius, scale: g.scale.x, size, worldSize: size.clone().multiplyScalar(g.scale.x), bottom: base, ...extra }; // anchor/curve are organ-local (group is scaled): use organ.localToWorld
   return g;
 }
 
