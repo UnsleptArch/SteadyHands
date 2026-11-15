@@ -97,7 +97,7 @@ export default {
           dir.normalize();
         }
         arteryPts = [];
-        for (let i = 0; i <= 20; i++) { const t = i / 20, q = apCurve.getPoint(t); arteryPts.push(q.clone().addScaledVector(dir, 0.13 * (1 - 0.6 * t)).setY(q.y + 0.005)); }
+        for (let i = 0; i <= 20; i++) { const t = i / 20, q = apCurve.getPoint(t); arteryPts.push(q.clone().addScaledVector(dir, 0.13 * (1 - 0.4 * t)).setY(q.y + 0.005)); }
         const vessel = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(arteryPts), 48, 0.011, 8), new THREE.MeshStandardMaterial({ color: 0xa8282c, roughness: 0.35 }));
         aset.group.attach(vessel);
         if (dr.cavity && dr.cavity.children[0]) dr.cavity.children[0].visible = false; // the set brings its own posterior wall
@@ -247,9 +247,9 @@ export default {
               findRing.position.set(target.x, target.y + 0.01, target.z);
               findRing.material.opacity = found ? 0.55 + 0.4 * Math.sin(performance.now() / 180) : 0;
               // artery proximity
-              if (da < 0.045) {
+              if (da < 0.03) {
                 if (touchArmed) { touchArmed = false; S.error(1, 'Artery touched! Ease off'); }
-              } else if (da < 0.1) { if (!near) { near = true; S.warn('Careful — artery nearby'); } }
+              } else if (da < 0.075) { if (!near) { near = true; S.warn('Careful — artery nearby'); } }
               else { near = false; if (da > 0.07) touchArmed = true; }
               mech.toolOpen = ev.down ? 0 : 0.6;
               if (ev.pressed) {
@@ -269,7 +269,8 @@ export default {
             },
             async bot(bot) {
               const hand = (p) => V(centre.x - (p.x - centre.x) / GAIN, y, centre.z - (p.z - centre.z) / GAIN);
-              await bot.moveTo(hand(V(target.x - 0.25, 0, target.z - 0.25)), 0.7);
+              const a = arteryPts[arteryPts.length - 1], away = V(target.x - a.x, 0, target.z - a.z).normalize();
+              await bot.moveTo(hand(V(target.x + away.x * 0.3, 0, target.z + away.z * 0.3)), 0.7);
               await bot.wait(0.3);
               await bot.moveTo(hand(target), 0.35);
               await bot.wait(0.3); bot.down(true); await bot.wait(1.0); bot.down(false);
