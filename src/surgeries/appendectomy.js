@@ -190,7 +190,6 @@ export default {
     else monitor = null;
 
     // ---------------- retractor props ----------------
-    const steelMat = new THREE.MeshStandardMaterial({ color: 0xd7dade, metalness: 1, roughness: 0.28, side: THREE.DoubleSide });
     // Army-Navy style blade: J-profile thin steel (lip down into the wound, hooked over the edge, shank out to a finger hole)
     function bladeGeometry() {
       const P = [[0.03, -0.135], [-0.008, -0.118], [-0.012, -0.06], [-0.012, 0]];
