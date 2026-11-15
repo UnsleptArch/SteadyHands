@@ -4,6 +4,7 @@ import { buildRoom, makeEnvironment } from './room.js';
 import { stubLevel } from './stub.js';
 
 export const LEVEL_IDS = ['incision', 'suture', 'lap'];
+const DEFAULT_MM = 0.01; // ART convention: 1 unit = 10 cm
 
 // Smooth 1D noise: sum of incommensurate sines with random phases (cheap, deterministic per session).
 function makeNoise(seed) {
@@ -78,9 +79,9 @@ export function createEngine(canvas, opts = {}) {
   window.addEventListener('keyup', (e) => input.keys.delete(e.code));
   window.addEventListener('blur', () => { input.keys.clear(); input.pointer.down = false; });
 
-  // Tremor model, shared by all drills. Amplitudes in world units (1 unit = 10 cm).
+  // Tremor model, shared by all drills. Amplitudes in MILLIMETRES, converted with engine.MM (world units per mm).
   const nx = makeNoise(Math.random() * 100), nz = makeNoise(Math.random() * 100 + 50);
-  const TREMOR = { normal: 0.022, steady: 0.004, drain: 0.28, regen: 0.14 };
+  const TREMOR = { normal: 1.6, steady: 0.3, drain: 0.28, regen: 0.14 };
 
   function updateInput(dt, t) {
     const wantSteady = input.keys.has('ShiftLeft') || input.keys.has('ShiftRight');
@@ -93,7 +94,8 @@ export function createEngine(canvas, opts = {}) {
     }
     const target = input.steady ? TREMOR.steady : TREMOR.normal;
     input.tremorAmp += (target - input.tremorAmp) * Math.min(1, dt * 8);
-    const amp = engine.botNoTremor && botPointer ? 0 : input.tremorAmp * engine.tremorScale;
+    const amp = engine.botNoTremor && botPointer ? 0 : input.tremorAmp * engine.tremorScale * engine.MM;
+    input.tremorMm = input.tremorAmp * engine.tremorScale;
     input.tremor.x = nx(t * 1.9) * amp;
     input.tremor.z = nz(t * 1.9) * amp;
 
@@ -115,7 +117,7 @@ export function createEngine(canvas, opts = {}) {
   const tickFns = new Set();
   const engine = {
     THREE, scene, camera, renderer, clock, input, events, art, room, raycaster,
-    MM: 0.01,
+    MM: DEFAULT_MM,
     LEVEL_IDS,
     levels: {},          // id -> level module (meta: id,title,brief) once loaded
     currentLevel: null,  // {id, title, module, controller}
@@ -177,6 +179,7 @@ export function createEngine(canvas, opts = {}) {
     plane.constant = 0;
     camHome.pos.copy(CAM_DEFAULT.pos); camHome.target.copy(CAM_DEFAULT.target); engine.resetCamera();
     engine.tremorScale = 1;
+    engine.MM = typeof mod.MM === 'number' ? mod.MM : DEFAULT_MM;
     engine.botNoTremor = false;
     botPointer = null; botDown = null;
     input.focus = 1;

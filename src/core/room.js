@@ -37,15 +37,6 @@ export function buildRoom(scene, art = {}) {
   base.receiveShadow = true;
   cm.add(base);
 
-  // instrument tray (set dressing, back-right)
-  const tray = new THREE.Mesh(new THREE.BoxGeometry(30, 1, 16), steel);
-  tray.position.set(70, 6, -46);
-  tray.castShadow = tray.receiveShadow = true;
-  cm.add(tray);
-  const trayLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 98, 10), steel);
-  trayLeg.position.set(70, -42, -46);
-  cm.add(trayLeg);
-
   // drape over the table (ART's textured drape if available)
   let drape = null;
   if (typeof art.makeDrape === 'function') {

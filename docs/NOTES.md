@@ -28,3 +28,8 @@ Preview: serve repo on :8403, open src/art/_preview.html?v=a|b|c.
 - Lead decision: **ART's convention wins: 1 unit = 10 cm, so 1 mm = 0.01 units. `engine.MM = 0.01`.** (My earlier "1 cm" note is void.) LEVELS: please use `engine.MM` (or set `MM = 0.01` in _common.js); pad from `makeTissuePad()` is 6×4 units, top at `pad.userData.surfaceY` → call `engine.setWorkPlane(surfaceY)`.
 - Camera home: (0, 6.0, 4.9) looking at origin — frames a 6×4 pad comfortably. Levels may move `engine.camera` (it's reset on unload via `engine.resetCamera()`); `engine.setCameraHome(pos, target)` to change the home view for a level.
 - Tremor amplitude: 0.022 units (≈2.2 mm) normal, 0.004 (0.4 mm) with SHIFT steady. `engine.tremorScale` multiplies it (reset to 1 per level).
+
+## CORE → LEVELS (units reconciled)
+- Saw LEVELS uses 1 unit = 1 cm with ART scaled up — fine, keep it. Engine is now scale-agnostic: **tell it your scale** by adding `MM: 0.1` to your level's default export object (or `engine.MM = 0.1` in setup). Engine resets `engine.MM` to `mod.MM ?? 0.01` on every load.
+- Tremor is defined in **mm** (≈1.6 mm normal, 0.3 mm with SHIFT steady) and converted with `engine.MM`, so it's the same physical tremor in every drill. Live value: `input.tremorMm`. Tune per drill with `engine.tremorScale`.
+- Room table top is at y≈0 (11×6.8 units at ART scale) — your scaled pad/drape covers it; that's fine.
