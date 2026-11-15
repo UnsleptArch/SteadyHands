@@ -4,7 +4,17 @@
 
 Real surgical training happens in simulation labs most students never get to use. Steady Hands turns the skills those labs teach into game mechanics: hand tremor, the laparoscopic fulcrum effect, and grading modelled on OSATS (Objective Structured Assessment of Technical Skills). It runs on any laptop with nothing to install.
 
-Video: [`video/steady_hands_final.mp4`](video/steady_hands_final.mp4) (3:00)
+## Watch the 3-minute video
+[![Steady Hands video](docs/img/video_thumb.jpg)](video/steady_hands_final.mp4)
+
+▶ **[video/steady_hands_final.mp4](video/steady_hands_final.mp4)** (3:00, with subtitles). Click "View raw" on GitHub to play or download it.
+
+## Screenshots
+| | |
+|---|---|
+| ![Appendectomy](docs/img/appendectomy_26.jpg) **Appendectomy:** cut and remove the appendix | ![Central line](docs/img/central_line_24.jpg) **Central line:** live ultrasound + Seldinger guidewire |
+| ![Cholecystectomy](docs/img/cholecystectomy_45.jpg) **Lap cholecystectomy:** prove the Critical View of Safety | ![Chest tube](docs/img/chest_tube_30.jpg) **Chest tube:** finger sweep, live chest X-ray |
+| ![Peg transfer](docs/img/lap_12.jpg) **Laparoscopic transfer:** FLS peg transfer and the fulcrum effect | ![Results](docs/img/suture_16.5.jpg) **Results card:** OSATS-style grades + a sourced fact |
 
 ## What's in it
 
