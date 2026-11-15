@@ -48,31 +48,17 @@ export default {
       cavityY = abdomen.y + (dr.cavityY ?? -0.06);
       prepY = artPrep ? abdomen.y + artPrep.position.y : abdomen.y + 0.11;
     } else {
-      const d = new THREE.Mesh(new THREE.PlaneGeometry(6, 5), flat(0x2f8f74)); d.rotation.x = -Math.PI / 2; d.position.copy(abdomen).add(V(0, 0.1, 0)); group.add(d);
+      const d = new THREE.Mesh(new THREE.PlaneGeometry(6, 5), flat(0x3e6e8e)); d.rotation.x = -Math.PI / 2; d.position.copy(abdomen).add(V(0, 0.1, 0)); group.add(d);
       const floor = new THREE.Mesh(new THREE.PlaneGeometry(WIN_W, WIN_H), flat(0xb87a70)); floor.rotation.x = -Math.PI / 2; floor.position.copy(abdomen).add(V(0, 0.105, 0)); group.add(floor);
       cavityY = abdomen.y + 0.105; prepY = abdomen.y + 0.12;
     }
     if (artPrep) artPrep.visible = false; // replaced by two halves that part on retraction
     const C = V(abdomen.x, prepY, abdomen.z); // window centre at skin level
 
-    // skin halves (split along the incision line, z = C.z)
-    const prepMat = call(art, 'prepSkinMaterial', WIN_W, WIN_H / 2) || (artPrep && artPrep.material) || new THREE.MeshStandardMaterial({ color: 0xd9b88a, flatShading: true, roughness: 0.8 });
+    const prepMat = call(art, 'prepSkinMaterial', WIN_W + 0.08, WIN_H + 0.08) || (artPrep && artPrep.material) || new THREE.MeshStandardMaterial({ color: 0xd9b88a, flatShading: true, roughness: 0.8 });
     const fatMat = new THREE.MeshStandardMaterial({ color: 0xe9c983, roughness: 0.55 });
-    const dermisMat = new THREE.MeshStandardMaterial({ color: 0xd9a08a, roughness: 0.6 });
-    const halves = [-1, 1].map((s) => {
-      const geo = new THREE.PlaneGeometry(WIN_W, WIN_H / 2); geo.rotateX(-Math.PI / 2); geo.translate(0, 0, -s * WIN_H / 4); // edge at local z=0, extends outward
-      const m = new THREE.Mesh(geo, prepMat); m.receiveShadow = true;
-      const pivot = new THREE.Group(); pivot.position.set(C.x, prepY, C.z + s * WIN_H / 2); // pivot at outer edge
-      // cut edge: thin dermis + yellow subcutaneous fat band so the wound edge has depth (no blood)
-      const edge = new THREE.Mesh(new THREE.PlaneGeometry(WIN_W, 0.14), fatMat);
-      edge.position.set(0, -0.07, -s * WIN_H / 2); if (s > 0) edge.rotation.y = Math.PI; pivot.add(edge);
-      const dermis = new THREE.Mesh(new THREE.PlaneGeometry(WIN_W, 0.025), dermisMat);
-      dermis.position.set(0, -0.013, -s * WIN_H / 2 + -s * 0.001); if (s > 0) dermis.rotation.y = Math.PI; pivot.add(dermis);
-      pivot.add(m); group.add(pivot); pivot.userData.s = s;
-      return pivot;
-    });
-    let openAmt = 0; // 0 closed .. 1 wide open
-    const setOpen = (t) => { openAmt = t; for (const h of halves) h.scale.z = Math.max(0.02, 1 - 0.8 * t); };
+    const dermisMat = new THREE.MeshStandardMaterial({ color: 0xd99c86, roughness: 0.6 });
+    const fasciaMat = new THREE.MeshStandardMaterial({ color: 0xe8d6cc, roughness: 0.45 });
 
     // organs (centred in the window, under the skin)
     let apCurve = null; // world-space appendix centreline
@@ -97,7 +83,7 @@ export default {
           dir.normalize();
         }
         arteryPts = [];
-        for (let i = 0; i <= 20; i++) { const t = i / 20, q = apCurve.getPoint(t); arteryPts.push(q.clone().addScaledVector(dir, 0.13 * (1 - 0.4 * t)).setY(q.y + 0.005)); }
+        for (let i = 0; i <= 20; i++) { const t = i / 20, q = apCurve.getPoint(t); arteryPts.push(q.clone().addScaledVector(dir, 0.1 * (1 - 0.35 * t)).setY(q.y + 0.005)); }
         const vessel = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(arteryPts), 48, 0.011, 8), new THREE.MeshStandardMaterial({ color: 0xa8282c, roughness: 0.35 }));
         aset.group.attach(vessel);
         if (dr.cavity && dr.cavity.children[0]) dr.cavity.children[0].visible = false; // the set brings its own posterior wall
@@ -157,30 +143,84 @@ export default {
     // highlight ring that marks the appendix once found
     const findRing = makeRing(0.1, 0.125, 0x3ec5b5, 0, 0); findRing.material.depthTest = false; findRing.renderOrder = 9; group.add(findRing);
 
+    // ---------------- skin with an oblique (McBurney-style) incision over the appendix ----------------
+    // The rest of the window stays intact prepped skin; retraction gapes the slit into an elliptical opening with
+    // dermis -> fat -> fascia walls, through which the packed abdominal anatomy is seen.
+    const apA = apCurve.getPoint(0.05), apB = apCurve.getPoint(0.95);
+    const E = apCurve.getPoint(0.45).setY(prepY);
+    E.x = Math.max(C.x - WIN_W / 2 + 0.6, Math.min(C.x + WIN_W / 2 - 0.6, E.x));
+    E.z = Math.max(C.z - WIN_H / 2 + 0.5, Math.min(C.z + WIN_H / 2 - 0.5, E.z));
+    const U = V(apB.x - apA.x, 0, apB.z - apA.z); if (U.lengthSq() < 1e-6) U.set(1, 0, 0); U.normalize();
+    const Vp = V(-U.z, 0, U.x);
+    const THETA = Math.atan2(-U.z, U.x); // rotation.y mapping local +x -> U, local +z -> Vp
+    const HALF_L = Math.max(0.35, apA.distanceTo(apB) / 2 + 0.08), B_MAX = 0.2;
+    const sx0 = C.x - WIN_W / 2 - 0.04, sx1 = C.x + WIN_W / 2 + 0.04, sz0 = C.z - WIN_H / 2 - 0.04, sz1 = C.z + WIN_H / 2 + 0.04;
+    const skin = new THREE.Mesh(new THREE.BufferGeometry(), prepMat); skin.receiveShadow = true; skin.position.y = prepY; group.add(skin);
+    const walls = new THREE.Group(); walls.position.copy(E); walls.rotation.y = THETA; group.add(walls);
+    for (const [mat, top, h] of [[dermisMat, 0, 0.022], [fatMat, -0.022, 0.07], [fasciaMat, -0.092, 0.03]]) {
+      const g = new THREE.CylinderGeometry(1, 1, h, 56, 1, true); g.scale(-1, 1, 1); g.computeVertexNormals(); // inward-facing
+      const m = new THREE.Mesh(g, mat); m.position.y = top - h / 2; walls.add(m);
+    }
+    let holeA = HALF_L, holeB = 0, builtB = -1, openAmt = 0;
+    function buildSkin() {
+      const shape = new THREE.Shape();
+      shape.moveTo(sx0, -sz0); shape.lineTo(sx1, -sz0); shape.lineTo(sx1, -sz1); shape.lineTo(sx0, -sz1); shape.closePath();
+      if (holeB > 0.004) {
+        const hole = new THREE.Path();
+        for (let k = 0; k <= 56; k++) {
+          const ang = (k / 56) * Math.PI * 2, px = E.x + U.x * holeA * Math.cos(ang) + Vp.x * holeB * Math.sin(ang), pz = E.z + U.z * holeA * Math.cos(ang) + Vp.z * holeB * Math.sin(ang);
+          if (k === 0) hole.moveTo(px, -pz); else hole.lineTo(px, -pz);
+        }
+        shape.holes.push(hole);
+      }
+      const g = new THREE.ShapeGeometry(shape, 1); g.rotateX(-Math.PI / 2);
+      const pos = g.attributes.position, uv = g.attributes.uv;
+      for (let i = 0; i < pos.count; i++) uv.setXY(i, (pos.getX(i) - sx0) / (sx1 - sx0), 1 - (pos.getZ(i) - sz0) / (sz1 - sz0));
+      skin.geometry.dispose(); skin.geometry = g; builtB = holeB;
+      walls.visible = holeB > 0.004; walls.scale.set(holeA, 1, Math.max(0.004, holeB));
+    }
+    const setOpen = (t) => {
+      openAmt = t; holeB = t <= 0 ? 0 : 0.012 + (B_MAX - 0.012) * Math.min(1, t); holeA = HALF_L * (0.96 + 0.04 * Math.min(1, t));
+      if (Math.abs(holeB - builtB) > 0.003 || (holeB === 0) !== (builtB === 0)) buildSkin();
+    };
+    buildSkin();
+
     let monitor = call(art, 'makeVitalsMonitor');
     if (monitor && monitor.mesh) { monitor.mesh.position.set(C.x - 2.5, prepY - 2.3, C.z - 2.2); monitor.mesh.rotation.y = 0.5; group.add(monitor.mesh); }
     else monitor = null;
 
     // ---------------- retractor props ----------------
     const steelMat = new THREE.MeshStandardMaterial({ color: 0xd7dade, metalness: 1, roughness: 0.28, side: THREE.DoubleSide });
+    // Army-Navy style blade: J-profile thin steel (lip down into the wound, hooked over the edge, shank out to a finger hole)
+    function bladeGeometry() {
+      const P = [[0.03, -0.135], [-0.008, -0.118], [-0.012, -0.06], [-0.012, 0]];
+      for (let k = 1; k <= 6; k++) { const a = Math.PI - (k / 6) * Math.PI / 2; P.push([0.01 + 0.022 * Math.cos(a), 0.022 * Math.sin(a)]); }
+      P.push([0.12, 0.028], [0.26, 0.045], [0.4, 0.065]);
+      const T = 0.006, L = [], R = [];
+      for (let i = 0; i < P.length; i++) {
+        const a = P[Math.max(0, i - 1)], b = P[Math.min(P.length - 1, i + 1)];
+        let tx = b[0] - a[0], ty = b[1] - a[1]; const l = Math.hypot(tx, ty) || 1; tx /= l; ty /= l;
+        L.push(new THREE.Vector2(P[i][0] - ty * T, P[i][1] + tx * T)); R.push(new THREE.Vector2(P[i][0] + ty * T, P[i][1] - tx * T));
+      }
+      const g = new THREE.ExtrudeGeometry(new THREE.Shape([...L, ...R.reverse()]), { depth: 0.16, bevelEnabled: false, curveSegments: 4 });
+      g.rotateY(-Math.PI / 2); g.translate(0.08, 0, 0); g.computeVertexNormals();
+      return g;
+    }
+    const steelMat = new THREE.MeshStandardMaterial({ color: 0xd7dade, metalness: 1, roughness: 0.28 });
+    const bladeGeo = bladeGeometry();
     const retractors = [-1, 1].map((s) => {
       const r = new THREE.Group();
-      // Army-Navy style: thin curved lip hooked into the wound, flat shank bending out over the skin, finger hole
-      const lip = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.13, 0.01), steelMat); lip.position.set(0, -0.055, 0); lip.rotation.x = s * 0.15; r.add(lip);
-      const toe = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.01, 0.06), steelMat); toe.position.set(0, -0.12, -s * 0.03); r.add(toe);
-      const shank = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.01, 0.42), steelMat);
-      shank.position.set(0, 0.03, s * 0.25); shank.rotation.x = s * 0.08; r.add(shank);
-      const neck = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.01, 0.09), steelMat);
-      neck.position.set(0, 0.0, s * 0.04); neck.rotation.x = -s * 0.9; r.add(neck);
-      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.013, 8, 20), steelMat);
-      ring.rotation.x = Math.PI / 2; ring.position.set(0, 0.045, s * 0.5); r.add(ring);
+      r.add(new THREE.Mesh(bladeGeo, steelMat));
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.01, 8, 20), steelMat);
+      ring.rotation.x = Math.PI / 2; ring.position.set(0, 0.068, 0.44); r.add(ring);
+      r.rotation.y = THETA + (s > 0 ? 0 : Math.PI);
+      r.traverse((o) => { if (o.isMesh) o.castShadow = true; });
       r.visible = false; group.add(r); r.userData.s = s;
       return r;
     });
 
-    const INC_L = 1.5;
     const incPts = [];
-    for (let i = 0; i <= 30; i++) { const u = i / 30; incPts.push(V(C.x - INC_L / 2 + INC_L * u, prepY, C.z + 0.02 * Math.sin(u * Math.PI))); }
+    for (let i = 0; i <= 30; i++) { const u = -1 + (2 * i) / 30; incPts.push(E.clone().addScaledVector(U, u * HALF_L * 0.92).addScaledVector(Vp, 0.012 * (1 - u * u))); }
     let incMech = null;
 
     // framing keeps the action in the upper ~70% of the screen (HUD hint + focus meter sit at the bottom)
@@ -192,19 +232,19 @@ export default {
       {
         title: 'Mark & incise the right lower quadrant', tool: 'scalpel', plane: prepY,
         instr: 'Press on the green dot and draw the blade along the purple marker line. Hold SHIFT to steady.',
-        cam: closeCam(0, 0.05, 2.3, 1.45),
+        cam: closeCam(E.x - C.x, E.z - C.z, 1.7, 1.05),
         start(S) { incMech = traceGuide(S, { pts: incPts, y: prepY + 0.006, tolMm: 4 }); incMech.keep = true; return incMech; },
       },
       {
-        title: 'Retract the wound edges', tool: null, plane: prepY + 0.04,
+        title: 'Retract the wound edges', tool: null, plane: prepY,
         instr: 'Grab each white handle ring and pull the retractor out to its teal target.',
-        cam: { pos: [C.x + 0.15, prepY + 3.0, C.z + 1.3], target: [C.x, prepY - 0.05, C.z + 0.03] },
+        cam: closeCam(E.x - C.x, E.z - C.z - 0.05, 1.9, 1.1),
         start(S) {
-          const y = prepY + 0.04;
+          const y = prepY;
           retractors.forEach((r) => { r.visible = true; });
           const handles = retractors.map((r) => {
             const s = r.userData.s;
-            return { obj: r, from: V(C.x, y, C.z + s * 0.05), to: V(C.x, y, C.z + s * (WIN_H / 2 - 0.45)) };
+            return { obj: r, from: E.clone().setY(y).addScaledVector(Vp, s * 0.03), to: E.clone().setY(y).addScaledVector(Vp, s * B_MAX) };
           });
           return dragHandles(S, {
             handles, y,
@@ -238,8 +278,11 @@ export default {
             frac: () => (found ? 0.5 : 0) + 0.5 * Math.min(1, holdT / 0.8),
             update(ev, dt) {
               tip.set(centre.x - (ev.p.x - centre.x) * GAIN, y - 0.03, centre.z - (ev.p.z - centre.z) * GAIN);
-              tip.x = Math.max(C.x - WIN_W / 2 + 0.1, Math.min(C.x + WIN_W / 2 - 0.1, tip.x));
-              tip.z = Math.max(C.z - WIN_H / 2 + 0.1, Math.min(C.z + WIN_H / 2 - 0.1, tip.z));
+              { // the shaft can only reach through the opening
+                const du = (tip.x - E.x) * U.x + (tip.z - E.z) * U.z, dv = (tip.x - E.x) * Vp.x + (tip.z - E.z) * Vp.z;
+                const q = (du / (holeA * 1.05)) ** 2 + (dv / (Math.max(holeB, 0.05) * 1.05)) ** 2;
+                if (q > 1) { const k = 1 / Math.sqrt(q); tip.x = E.x + (U.x * du + Vp.x * dv) * k; tip.z = E.z + (U.z * du + Vp.z * dv) * k; }
+              }
               handRing.position.set(ev.p.x, y, ev.p.z);
               const d = Math.hypot(tip.x - target.x, tip.z - target.z);
               const da = arteryDist(tip);
@@ -309,7 +352,7 @@ export default {
           const y = AP_Y + 0.01;
           const c = apCurve.getPoint(0.32), tan = apCurve.getTangent(0.32);
           const n = V(-tan.z, 0, tan.x).normalize();
-          const pts = []; for (let i = 0; i <= 8; i++) pts.push(c.clone().addScaledVector(n, -0.17 + 0.34 * i / 8).setY(y));
+          const pts = []; for (let i = 0; i <= 8; i++) pts.push(c.clone().addScaledVector(n, -0.13 + 0.26 * i / 8).setY(y));
           const m = traceGuide(S, { pts, y, tolMm: 5 });
           const inner = m.update;
           m.update = (ev, dt) => {
@@ -323,19 +366,19 @@ export default {
       {
         title: 'Close with 3 sutures', tool: 'driver', plane: prepY,
         instr: 'Edges are approximated. For each stitch: press on the teal dot, drag across, release on the purple dot.',
-        cam: closeCam(0, 0.05, 2.0, 1.25),
+        cam: closeCam(E.x - C.x, E.z - C.z, 1.7, 1.05),
         start(S) {
           retractors.forEach((r) => { r.visible = false; });
           if (organ) organ.visible = false;
           deep.forEach((o) => { o.visible = false; });
           // ease the skin back together
           const t0 = performance.now(), from = openAmt;
-          const tick = () => { if (disposedFlag) return; const u = Math.min(1, (performance.now() - t0) / 900); setOpen(from + (0.06 - from) * u); if (u < 1) requestAnimationFrame(tick); };
+          const tick = () => { if (disposedFlag) return; const u = Math.min(1, (performance.now() - t0) / 900); setOpen(from + (0.02 - from) * u); if (u < 1) requestAnimationFrame(tick); };
           requestAnimationFrame(tick);
-          const pairs = [-0.45, 0, 0.45].map((dx) => ({ entry: V(C.x + dx, prepY, C.z + 0.16), exit: V(C.x + dx, prepY, C.z - 0.16) }));
+          const pairs = [-0.5, 0, 0.5].map((k) => { const c = E.clone().addScaledVector(U, k * HALF_L * 0.8); return { entry: c.clone().addScaledVector(Vp, 0.11), exit: c.clone().addScaledVector(Vp, -0.11) }; });
           return sutureBites(S, {
             pairs, y: prepY + 0.006, radius: 0.08,
-            onStitch(i) { setOpen(Math.max(0, 0.06 * (1 - (i + 1) / 3))); },
+            onStitch(i) { setOpen(i >= 2 ? 0 : 0.02 * (1 - (i + 1) / 3)); },
           });
         },
       },
