@@ -61,7 +61,7 @@ export function makeORLights(scene) {
   key.position.set(0.8, 10, 2.4);
   key.target.position.set(0, 0, 0);
   key.castShadow = true;
-  key.shadow.mapSize.set(2048, 2048);
+  key.shadow.mapSize.set(1024, 1024);
   key.shadow.bias = -0.0004; key.shadow.normalBias = 0.03; key.shadow.radius = 6;
   key.shadow.camera.near = 4; key.shadow.camera.far = 22;
   const fill = new THREE.HemisphereLight(0xdbe6f0, 0x2a2420, 0.35);
