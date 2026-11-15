@@ -370,7 +370,7 @@ export default {
       check(i, on) { ov.querySelector(`.it[data-c="${i}"]`).classList.toggle('ok', on); ov.querySelector(`.it[data-c="${i}"] i`).textContent = on ? '✓' : ''; },
       question(on) { $('.chl-panel .q').style.display = on ? 'block' : 'none'; },
       tool(name) { const t = $('.chl-tool'); t.style.display = name ? 'block' : 'none'; if (name) t.innerHTML = `Instrument: <b>${name}</b>`; },
-      toolSwap(name) { const t = $('.chl-tool'); t.style.display = 'block'; t.innerHTML = `Instrument: <b>${name}</b> <kbd>Q</kbd> swap`; },
+      toolSwap(name) { const t = $('.chl-tool'); t.style.display = 'block'; t.innerHTML = `Instrument: <b>${name}</b> <kbd>X</kbd> swap`; },
     };
     ov.style.zIndex = 2;
 
@@ -634,7 +634,7 @@ export default {
             hideMarker: true,
             frac: () => (slots.filter((s) => s.done).length + (cuts.duct ? 2 : 0) + (cuts.artery ? 2 : 0)) / 10,
             update(ev, dt) {
-              const q = ev.input.keys.has('KeyQ');
+              const q = ev.input.keys.has('KeyX');
               if (q && !qPrev) setTool(tool === 'clip' ? 'scissors' : 'clip');
               qPrev = q;
               tip.copy(tipFromHand(local(ev.p)));
@@ -648,7 +648,7 @@ export default {
               ghostMat.opacity = pulse;
               if (tool === 'clip') {
                 if (ev.pressed) {
-                  let best = null, bd = 0.04;
+                  let best = null, bd = 0.05;
                   for (const s of slots) if (!s.done) { const d = dXZ(planeHit(s.p), tip); if (d < bd) { bd = d; best = s; } }
                   if (best) { holdSlot = best; hold = 0; holdFrom = local(ev.p); }
                   else if (curveDist(cbdCurve, tip, 0.15, 0.75).d < 0.05) S.error(1.8, 'Never clip the common bile duct!');
@@ -656,7 +656,7 @@ export default {
                 }
                 if (holdSlot && ev.down) {
                   hold += dt;
-                  if (dXZ(local(ev.p), holdFrom) > 0.045) { S.m.missedActions++; S.comboBreak('clip'); S.warn('Clip misdeployed — hold steady (SHIFT)'); holdSlot = null; }
+                  if (dXZ(local(ev.p), holdFrom) > 0.06) { S.m.missedActions++; S.comboBreak('clip'); S.warn('Clip misdeployed — hold steady (SHIFT)'); holdSlot = null; }
                   else if (hold >= 0.4) {
                     const s = holdSlot; holdSlot = null; placeClip(s);
                     const err = dXZ(planeHit(s.p), tip) / MM; S.precision(err);
@@ -682,9 +682,23 @@ export default {
             },
             async bot(bot) {
               await settle(bot);
-              for (const s of slots) { await bot.moveTo(handFor(planeHit(s.p)), 0.6); await bot.wait(0.2); bot.down(true); await bot.wait(0.55); bot.down(false); await bot.wait(0.15); }
-              await bot.wait(0.3);
-              for (const c of [st.duct, st.artery]) { await bot.moveTo(handFor(planeHit(c.getPoint(CUT))), 0.6); await bot.wait(0.3); bot.down(true); await bot.wait(0.15); bot.down(false); await bot.wait(0.3); }
+              // dwell before pressing so a real-input replay (glide, then press) keeps the 0.4 s hold intact; retry misfires
+              const until = async (f, secs) => { for (let n = 0; n < secs / 0.05 && !f(); n++) await bot.wait(0.05); };
+              for (const s of slots) {
+                for (let k = 0; k < 4 && !s.done; k++) {
+                  await bot.moveTo(handFor(planeHit(s.p)), 0.6); await bot.wait(1.0);
+                  bot.down(true); await bot.wait(0.7); bot.down(false);
+                  await until(() => s.done, 2.5);
+                }
+              }
+              await until(() => tool === 'scissors', 3);
+              for (const [k, c] of [['duct', st.duct], ['artery', st.artery]]) {
+                for (let n = 0; n < 4 && !cuts[k]; n++) {
+                  await bot.moveTo(handFor(planeHit(c.getPoint(CUT))), 0.6); await bot.wait(1.0);
+                  bot.down(true); await bot.wait(0.2); bot.down(false);
+                  await until(() => cuts[k], 2.5);
+                }
+              }
             },
             dispose() { for (const s of slots) { cav.remove(s.ghost); s.ghost.geometry.dispose(); } },
           };
