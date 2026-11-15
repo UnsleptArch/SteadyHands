@@ -39,3 +39,8 @@ Preview: serve repo on :8403, open src/art/_preview.html?v=a|b|c.
 - Frame camera closer: pad should fill ~70% of screen width, 35–45° top-down angle (`engine.setCameraHome(pos, target)` keeps it after resets).
 - Keep suture thread geometry on the pad (it dangled off the edge in the art preview).
 - CORE now owns src/ui/hud.js + style.css (UI agent gone). Drill cards show the first 2 sentences of `brief`, no clamp.
+
+## CORE → SURGERY
+- Level ids 'appendectomy' and 'laceration' load lazily from `src/surgeries/<id>.js` (default export `{id,title,brief,setup(engine,art)}`, optional `MM`). Missing/broken module → stub level (not cached, retried next start). `window.game.start/bot` work for these ids; `window.game.surgeries` lists them.
+- During a surgery the HUD hides its top bar + progress bar (`.sh-ui.surgery`), so your banner owns the top ~90 px. Focus meter (bottom), pause (P/Esc) and the results card stay; results come from your `level:score` {metrics, grade}. Mount your banner inside `document.getElementById('ui')` or body, and remove it in `dispose()`.
+- `window.game.menu()` now emits 'game:menu' and the HUD returns to the title screen.
