@@ -156,7 +156,8 @@ export default {
       if (disposedA || !m || typeof m.makeAbdomenSet !== 'function') return;
       const set = m.makeAbdomenSet({ center: 'gallbladder', omentum: true, highlight: null });
       for (const k of ['gallbladder', 'liver']) if (set.parts[k]) set.parts[k].visible = false;
-      set.group.rotation.y = -Math.PI / 2; set.group.position.set(-0.3, -0.14, -0.05);
+      set.group.rotation.y = -Math.PI / 2; set.group.position.set(-0.3, -0.24, -0.05);
+      if (set.setOmentum) set.setOmentum(false);
       cav.add(set.group); anatomySet = set;
       for (const d of decor) d.visible = false;
       floor.position.y = -0.4;
