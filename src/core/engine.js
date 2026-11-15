@@ -16,14 +16,23 @@ function makeNoise(seed) {
   return (t) => f.reduce((s, fi, i) => s + a[i] * Math.sin(t * fi + p[i]), 0);
 }
 
-export function createEngine(canvas, opts = {}) {
+// Safe mode (no shadow maps): some GPU/driver combos (e.g. headless NVIDIA + ANGLE/Vulkan) lose the WebGL
+// context as soon as any shadow map renders. Forced with ?safe=1, or switched on automatically on context loss.
+let SAFE = /[?&]safe=1\b/.test(location.search);
+
+function makeRenderer(canvas) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.0;
-  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.enabled = !SAFE;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  return renderer;
+}
+
+export function createEngine(canvas, opts = {}) {
+  let renderer = makeRenderer(canvas);
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x07090c);
@@ -39,7 +48,8 @@ export function createEngine(canvas, opts = {}) {
   const events = new EventTarget();
   const art = opts.art || {};
   const room = buildRoom(scene, art);
-  if (!scene.environment) { try { scene.environment = makeEnvironment(renderer); } catch (err) { console.warn('[core] env map failed', err); } }
+  let ownEnv = false;
+  if (!scene.environment) { try { scene.environment = makeEnvironment(renderer); ownEnv = true; } catch (err) { console.warn('[core] env map failed', err); } }
 
   // ---------- input ----------
   const input = {
@@ -66,14 +76,42 @@ export function createEngine(canvas, opts = {}) {
     input.pointer.ndcX = (input.pointer.x / r.width) * 2 - 1;
     input.pointer.ndcY = -(input.pointer.y / r.height) * 2 + 1;
   }
-  canvas.addEventListener('pointermove', setPointer);
-  canvas.addEventListener('pointerdown', (e) => {
-    setPointer(e);
-    if (e.button === 0) input.pointer.down = true;
-    try { canvas.setPointerCapture(e.pointerId); } catch {}
-  });
+  function bindCanvas(c) {
+    c.addEventListener('pointermove', setPointer);
+    c.addEventListener('pointerdown', (e) => {
+      setPointer(e);
+      if (e.button === 0) input.pointer.down = true;
+      try { c.setPointerCapture(e.pointerId); } catch {}
+    });
+    c.addEventListener('contextmenu', (e) => e.preventDefault());
+    c.addEventListener('webglcontextlost', onContextLost, false);
+  }
+  bindCanvas(canvas);
   window.addEventListener('pointerup', (e) => { if (e.button === 0) input.pointer.down = false; });
-  canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  // On context loss: rebuild the renderer on a fresh canvas with shadow maps off (safe mode).
+  let lossCount = 0;
+  function onContextLost(e) {
+    e.preventDefault();
+    lossCount++;
+    console.warn(`[core] WebGL context lost (#${lossCount}); switching to safe mode (no shadows)`);
+    if (lossCount > 3) { showError('Graphics context lost repeatedly. Try another browser or add ?safe=1 to the URL.'); return; }
+    SAFE = true;
+    setTimeout(() => {
+      try { renderer.setAnimationLoop(null); } catch {}
+      const fresh = canvas.cloneNode(false);
+      canvas.replaceWith(fresh);
+      canvas = fresh;
+      bindCanvas(canvas);
+      renderer = makeRenderer(canvas);
+      engine.renderer = renderer;
+      engine.safeMode = true;
+      if (ownEnv) { try { scene.environment = makeEnvironment(renderer); } catch {} }
+      resize();
+      renderer.setAnimationLoop(frame);
+      engine.emit('renderer:reset', { safe: true });
+    }, 0);
+  }
   window.addEventListener('keydown', (e) => {
     input.keys.add(e.code);
     if (e.code === 'Space' && engine.currentLevel) e.preventDefault();
@@ -127,6 +165,7 @@ export function createEngine(canvas, opts = {}) {
     tremorScale: 1,
     botNoTremor: false,
     menuDrift: true,
+    safeMode: SAFE,
     status: { level: null, progress: 0, hint: '', metrics: null, grade: null, done: false, error: null },
     onTick(fn) { tickFns.add(fn); return () => tickFns.delete(fn); },
     emit(type, detail = {}) { events.dispatchEvent(new CustomEvent(type, { detail })); },
@@ -232,7 +271,8 @@ export function createEngine(canvas, opts = {}) {
   resize();
 
   let errCount = 0;
-  renderer.setAnimationLoop(() => {
+  renderer.setAnimationLoop(frame);
+  function frame() {
     const dt = Math.min(clock.getDelta(), 0.1);
     const t = clock.elapsedTime;
     updateInput(engine.paused ? 0 : dt, t);
@@ -252,7 +292,7 @@ export function createEngine(canvas, opts = {}) {
     room.update && room.update(dt, t);
     for (const fn of tickFns) { try { fn(dt, t, input); } catch (err) { if (errCount++ < 3) console.error(err); } }
     renderer.render(scene, camera);
-  });
+  }
 
   return engine;
 }

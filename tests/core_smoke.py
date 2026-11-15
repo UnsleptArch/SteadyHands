@@ -6,21 +6,24 @@ PORT = sys.argv[1] if len(sys.argv) > 1 else "8401"
 OUT = sys.argv[2] if len(sys.argv) > 2 else "/tmp/sh_shot"
 IDS = os.environ.get("IDS", "incision,suture,lap,appendectomy,laceration").split(",")
 errs = []
+cur = ["boot"]
 with sync_playwright() as p:
     gpu = ["--use-angle=vulkan", "--enable-gpu", "--ignore-gpu-blocklist", "--enable-features=Vulkan"]
     sw = ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"]
     b = p.chromium.launch(args=gpu if os.environ.get("GPU") else sw)
     pg = b.new_page(viewport={"width": int(os.environ.get("W", 1280)), "height": int(os.environ.get("H", 720))})
     pg.set_default_timeout(90000)
-    pg.on("console", lambda m: m.type == "error" and errs.append(m.text))
+    pg.on("console", lambda m: m.type == "error" and errs.append(f"[{cur[0]}] " + m.text))
     pg.on("pageerror", lambda e: errs.append("PAGEERROR " + str(e)))
     pg.goto(f"http://localhost:{PORT}/")
     pg.wait_for_function("window.game && window.game.ready", timeout=60000)
     pg.screenshot(path=f"{OUT}_menu.png")
+    cur[0] = "menu"
     pg.click("[data-act=how]"); pg.wait_for_timeout(400)
     pg.screenshot(path=f"{OUT}_how.png", full_page=True)
     pg.evaluate("window.game.menu()")
     for lid in IDS:
+        cur[0] = lid
         st = pg.evaluate(f"window.game.start('{lid}')")
         stub = pg.evaluate(f"!!(window.game.engine.currentLevel && window.game.engine.currentLevel.module.stub)")
         print(f"{lid}: started level={st['level']} stub={stub} error={st.get('error')}")

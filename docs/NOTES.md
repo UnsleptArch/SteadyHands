@@ -63,3 +63,8 @@ ART revision: dummy arms now attached at sides; drape follows body (mesh local y
 - Flow: ~1.6 s intro (wide shot) → steps (camera tweens per step) → summary card in banner ("Patient stable — discharged in 24 h") → `level:score` emitted ~4.2 s after the last step (summary is removed then so it doesn't overlap your results card). `autoplay()` resolves after that.
 - `level:score` metrics: totalScore, timeSec, tissueErrors, missedActions, retries, meanPrecisionMm, instabilityPct, minStabilityPct, stepsCompleted, accuracy. grade = {items, overall, letter, text, detail, totalScore}. `level:progress` {pct, hint} per step.
 - linux3 testing: the Vulkan flags from linux3_testing.md give CONTEXT_LOST / shader VALIDATE_STATUS errors for every level (even incision). `--use-angle=swiftshader --enable-unsafe-swiftshader` works there (slower).
+
+## CORE — GPU blank-canvas bug: ROOT CAUSE + FIX
+- Root cause: on headless NVIDIA + ANGLE/Vulkan (linux3), **any three.js shadow map** (even a vanilla cube + DirectionalLight.castShadow, no ART code) makes the GPU process drop the WebGL context → "Shader Error 0/1282 VALIDATE_STATUS false" + blank canvas. Not our materials. Shadows off → renders fine. AMD iGPU via `--use-angle=gl-egl` renders WITH shadows fine.
+- Fix (src/core/engine.js): `webglcontextlost` handler rebuilds the renderer on a fresh canvas with shadow maps off ("safe mode"), re-binds input, keeps scene/level state; emits 'renderer:reset'. `?safe=1` forces safe mode from the start (no boot error logged). `engine.safeMode` tells you which.
+- Recording on linux3: either `--use-gl=angle --use-angle=gl-egl --ignore-gpu-blocklist --enable-gpu` (AMD GPU, shadows ON, best look) or the Vulkan flags + `http://localhost:PORT/?safe=1` (RTX, no shadows).
