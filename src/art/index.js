@@ -216,60 +216,66 @@ export function makeTissuePad(o = {}) {
  *  flash(x,z), clearCut(), clearAll()}. x,z are pad-local coordinates (units). depth in 0..1 widens/darkens the groove. */
 export function incisionDecal(pad) {
   const { width, depth: D, surfaceY } = pad.userData;
-  const W = width - 0.12, H = D - 0.12, pxu = 300;
+  const W = width - 0.12, H = D - 0.12;
+  // perf: modest canvas (max side 1024 px); cut/mark strokes are drawn straight into the output canvas (no per-frame re-composite);
+  // texture upload throttled to <= 1 per 50 ms. Full re-composite only on setGuide/clear*.
+  const pxu = Math.min(170, 1024 / Math.max(W, H)), k = pxu / 300; // k scales the original 300-px/unit stroke widths
   const cw = Math.round(W * pxu), ch = Math.round(H * pxu);
   const mk = () => { const c = document.createElement('canvas'); c.width = cw; c.height = ch; return c; };
   const guideC = mk(), cutC = mk(), markC = mk(), outC = mk();
   const gg = guideC.getContext('2d'), cg = cutC.getContext('2d'), mg = markC.getContext('2d'), og = outC.getContext('2d');
   const tex = new THREE.CanvasTexture(outC); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
   const px = (x) => (x / W + 0.5) * cw, py = (z) => (z / H + 0.5) * ch;
-  let last = null, dirty = true;
+  let last = null, needsCompose = true, needsUpload = true, lastUpload = 0;
   const mat = new THREE.MeshStandardMaterial({ map: tex, transparent: true, depthWrite: false, roughness: 0.45, metalness: 0, envMapIntensity: 0.5, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(W, H), mat);
   mesh.rotation.x = -Math.PI / 2; mesh.position.y = surfaceY + 0.002; mesh.renderOrder = 2; mesh.name = 'incisionDecal';
   pad.add(mesh);
-  const compose = () => { og.clearRect(0, 0, cw, ch); og.drawImage(guideC, 0, 0); og.drawImage(cutC, 0, 0); og.drawImage(markC, 0, 0); tex.needsUpdate = true; dirty = false; };
-  compose();
-  mesh.onBeforeRender = () => { if (dirty) compose(); };
+  const compose = () => { og.clearRect(0, 0, cw, ch); og.drawImage(guideC, 0, 0); og.drawImage(cutC, 0, 0); og.drawImage(markC, 0, 0); needsCompose = false; needsUpload = true; };
+  const flush = (force) => { const n = performance.now(); if (needsCompose) compose(); if (needsUpload && (force || n - lastUpload > 50)) { tex.needsUpdate = true; needsUpload = false; lastUpload = n; } };
+  flush(true);
+  mesh.onBeforeRender = () => flush(false);
+  const both = (fn) => { fn(cg); if (!needsCompose) fn(og); needsUpload = true; }; // draw on layer + (if composited) directly on output
+  const bothM = (fn) => { fn(mg); if (!needsCompose) fn(og); needsUpload = true; };
   const api = {
     mesh, texture: tex,
     setGuide(pts, { color = '#5b3a9e', dashed = true, width: lw = 3 } = {}) {
-      gg.clearRect(0, 0, cw, ch); if (!pts || pts.length < 2) { dirty = true; return; }
-      // surgical skin-marker ink: slightly soft edge (ink bleed), semi-opaque
-      gg.strokeStyle = color; gg.lineWidth = lw * 1.15; gg.lineCap = 'round'; gg.lineJoin = 'round'; gg.globalAlpha = 0.82;
-      gg.shadowColor = color; gg.shadowBlur = 2.5;
-      if (dashed) gg.setLineDash([14, 8]);
+      gg.clearRect(0, 0, cw, ch); needsCompose = true; if (!pts || pts.length < 2) return;
+      gg.strokeStyle = color; gg.lineWidth = Math.max(1.2, lw * 1.15 * k * 1.3); gg.lineCap = 'round'; gg.lineJoin = 'round'; gg.globalAlpha = 0.85;
+      gg.shadowColor = color; gg.shadowBlur = 1.5;
+      if (dashed) gg.setLineDash([14 * k * 1.3, 8 * k * 1.3]);
       gg.beginPath(); pts.forEach((p, i) => (i ? gg.lineTo(px(p.x), py(p.z)) : gg.moveTo(px(p.x), py(p.z)))); gg.stroke();
       gg.setLineDash([]);
-      for (const p of [pts[0], pts[pts.length - 1]]) { gg.fillStyle = color; gg.beginPath(); gg.arc(px(p.x), py(p.z), 5.5, 0, 7); gg.fill(); }
+      for (const p of [pts[0], pts[pts.length - 1]]) { gg.fillStyle = color; gg.beginPath(); gg.arc(px(p.x), py(p.z), 5.5 * k * 1.3, 0, 7); gg.fill(); }
       gg.shadowBlur = 0; gg.globalAlpha = 1;
-      dirty = true;
     },
     addPoint(x, z, d = 0.5) {
       const p = { x: px(x), y: py(z) };
+      if (last && Math.hypot(p.x - last.x, p.y - last.y) < 0.7) return; // skip sub-pixel moves
       if (last) {
-        const w = 1.6 + d * 2.6; // thin, clean incision; deeper = slightly wider gap
-        const seg = (c, lw, a, ox = 0, oy = 0) => { cg.strokeStyle = c; cg.lineWidth = lw; cg.globalAlpha = a; cg.lineCap = 'round'; cg.beginPath(); cg.moveTo(last.x + ox, last.y + oy); cg.lineTo(p.x + ox, p.y + oy); cg.stroke(); };
-        seg('rgb(214,128,122)', w + 7, 0.22);          // faint pink wound edge
-        seg('rgb(255,226,214)', w + 2.2, 0.35, 0, -1); // lit upper lip
-        seg('rgb(150,48,52)', w + 1.2, 0.85);          // parted dermis edge
-        seg('rgb(72,14,20)', w * 0.55, 0.95);          // gap core
-        cg.globalAlpha = 1;
+        const w = (1.6 + d * 2.6) * k * 1.25, a = last;
+        both((c) => {
+          const seg = (col, lw, al, oy = 0) => { c.strokeStyle = col; c.lineWidth = lw; c.globalAlpha = al; c.lineCap = 'round'; c.beginPath(); c.moveTo(a.x, a.y + oy); c.lineTo(p.x, p.y + oy); c.stroke(); };
+          seg('rgb(214,128,122)', w + 7 * k, 0.22);
+          seg('rgb(255,226,214)', w + 2.2 * k, 0.35, -0.5);
+          seg('rgb(150,48,52)', w + 1.2 * k, 0.85);
+          seg('rgb(72,14,20)', Math.max(0.8, w * 0.55), 0.95);
+          c.globalAlpha = 1;
+        });
       }
-      last = p; dirty = true;
+      last = p;
     },
     endStroke() { last = null; },
     addMark(x, z, { color = '#2a5ea8', radius = 0.045 } = {}) {
-      mg.fillStyle = color; mg.globalAlpha = 0.9; mg.beginPath(); mg.arc(px(x), py(z), radius * pxu, 0, 7); mg.fill();
-      mg.strokeStyle = '#fff'; mg.lineWidth = 2; mg.stroke(); mg.globalAlpha = 1; dirty = true;
+      bothM((c) => { c.fillStyle = color; c.globalAlpha = 0.9; c.beginPath(); c.arc(px(x), py(z), radius * pxu, 0, 7); c.fill(); c.strokeStyle = '#fff'; c.lineWidth = 2 * k; c.stroke(); c.globalAlpha = 1; });
     },
     flash(x, z) { // subtle red error highlight (no gore)
-      const gr = mg.createRadialGradient(px(x), py(z), 0, px(x), py(z), 28); gr.addColorStop(0, 'rgba(200,60,60,0.35)'); gr.addColorStop(1, 'rgba(200,60,60,0)');
-      mg.fillStyle = gr; mg.fillRect(px(x) - 30, py(z) - 30, 60, 60); dirty = true;
+      const R = 28 * k * 1.3;
+      bothM((c) => { const gr = c.createRadialGradient(px(x), py(z), 0, px(x), py(z), R); gr.addColorStop(0, 'rgba(200,60,60,0.35)'); gr.addColorStop(1, 'rgba(200,60,60,0)'); c.fillStyle = gr; c.fillRect(px(x) - R, py(z) - R, R * 2, R * 2); });
     },
-    clearCut() { cg.clearRect(0, 0, cw, ch); last = null; dirty = true; },
-    clearMarks() { mg.clearRect(0, 0, cw, ch); dirty = true; },
-    clearAll() { gg.clearRect(0, 0, cw, ch); cg.clearRect(0, 0, cw, ch); mg.clearRect(0, 0, cw, ch); last = null; dirty = true; },
+    clearCut() { cg.clearRect(0, 0, cw, ch); last = null; needsCompose = true; },
+    clearMarks() { mg.clearRect(0, 0, cw, ch); needsCompose = true; },
+    clearAll() { gg.clearRect(0, 0, cw, ch); cg.clearRect(0, 0, cw, ch); mg.clearRect(0, 0, cw, ch); last = null; needsCompose = true; },
     dispose() { pad.remove(mesh); tex.dispose(); mat.dispose(); mesh.geometry.dispose(); },
   };
   return api;
