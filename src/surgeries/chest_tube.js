@@ -645,7 +645,7 @@ export default {
       },
       {
         title: 'Finger sweep', tool: null, plane: Y0 + 0.01,
-        instr: 'Hold the button and circle once around the opening: a gloved finger checks for adhesions and confirms you are in the pleura.',
+        instr: 'Circle once around the opening: a gloved finger checks for adhesions and confirms you are in the pleura.',
         cam: camAt(SITE_X, icsZ(5, SITE_X) + 0.07, 1.05, 0.65),
         start(S) {
           if (wheelOff) wheelOff();
@@ -665,7 +665,7 @@ export default {
               const dx = ev.p.x - hole.x, dz = ev.p.z - hole.z, r = Math.hypot(dx, dz);
               finger.position.set(ev.p.x, hole.y + (ev.down ? -0.03 : 0.02), ev.p.z);
               ring.material.opacity = 0.4 + 0.3 * Math.sin(performance.now() / 200);
-              if (ev.down && r > 0.025 && r < 0.18) {
+              if (r > 0.025 && r < 0.18) {
                 const a = Math.atan2(dz, dx);
                 if (lastA !== null) { let da = a - lastA; if (da > Math.PI) da -= 2 * Math.PI; if (da < -Math.PI) da += 2 * Math.PI; sum += da; }
                 lastA = a;
