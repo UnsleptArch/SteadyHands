@@ -82,7 +82,7 @@ export default {
       },
       {
         title: 'Numb the area', tool: 'syringe', plane: skinY,
-        instr: 'Local anaesthetic: press and HOLD on each blue marker until the ring fills. Keep the needle still.',
+        instr: 'Local anaesthetic: press and HOLD inside each pulsing teal ring until it fills. Keep the needle still.',
         cam: closeCam(1.9, 1.35),
         start(S) {
           const targets = [

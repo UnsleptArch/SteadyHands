@@ -8,7 +8,7 @@ import { createVitals } from './vitals.js';
 
 export const MM = 0.01;
 const TEAL = 0x3ec5b5;
-const TOOL_SCALE = { scalpel: 0.6, driver: 0.6, grasper: 0.8, syringe: 1 };
+const TOOL_SCALE = { scalpel: 0.6, driver: 0.6, grasper: 0.8, syringe: 0.7 };
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
 // ------------------------------------------------------------------ grading
@@ -558,7 +558,7 @@ export function sutureBites(S, { pairs, y, radius = 0.07, onStitch, color = 0x33
 export function holdTargets(S, { targets, y, radius = 0.06, holdT = 0.8, onDone, label = 'Injected' }) {
   const g = new THREE.Group(); S.group.add(g);
   const items = targets.map((p) => {
-    const dot = makeDot(0.018, 0x2a6fd8, y + 0.006); dot.position.set(p.x, y + 0.006, p.z);
+    const dot = makeDot(0.018, 0xffffff, y + 0.006); dot.position.set(p.x, y + 0.006, p.z);
     const ring = makeRing(0.04, 0.05, TEAL, y + 0.006, 0.9); ring.position.copy(dot.position);
     const fill = new THREE.Mesh(new THREE.CircleGeometry(0.075, 32), new THREE.MeshBasicMaterial({ color: 0x9fd4ff, transparent: true, opacity: 0, depthWrite: false }));
     fill.rotation.x = -Math.PI / 2; fill.position.set(p.x, y + 0.004, p.z); fill.scale.setScalar(0.01);
@@ -575,7 +575,7 @@ export function holdTargets(S, { targets, y, radius = 0.06, holdT = 0.8, onDone,
       for (const it of items) it.ring.material.opacity = it.done ? 0 : 0.4 + 0.6 * pulse;
       if (ev.pressed) {
         cur = items.findIndex((it) => !it.done && Math.hypot(ev.p.x - it.p.x, ev.p.z - it.p.z) < radius);
-        if (cur < 0) { S.m.missedActions++; S.warn('Inject on a blue marker'); }
+        if (cur < 0) { S.m.missedActions++; S.warn('Inject inside a teal ring'); }
         else S.setInstr('Hold steady while the anaesthetic goes in…');
       }
       if (cur >= 0) {
@@ -589,7 +589,7 @@ export function holdTargets(S, { targets, y, radius = 0.06, holdT = 0.8, onDone,
             it.done = true; cur = -1;
             S.precision(drift / MM);
             S.award(70, label); S.comboHit('inject', 'Smooth injection', 30);
-            S.setInstr(items.every((x) => x.done) ? 'Area numb' : 'Next blue marker: press and hold');
+            S.setInstr(items.every((x) => x.done) ? 'Area numb' : 'Next teal ring: press and hold');
           }
         } else {
           if (ev.down) S.error(0.4, 'Needle moved — hold still while injecting');
