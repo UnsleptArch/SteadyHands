@@ -2,6 +2,7 @@
 // Units: 1 unit = 10 cm (so 0.01 unit = 1 mm). Y is up. Pad lies in the XZ plane, top surface at y = pad.userData.surfaceY.
 // Instrument convention: tip at local origin, instrument body extends toward +Z (so the tool "points" along -Z).
 import * as THREE from 'three';
+import { makePatient } from './patient.js';
 import { rng, valueNoise, canvas, texFromCanvas, skinDetail, fabricDetail, tissueDetail, brushedDetail } from './tex.js';
 
 const V3 = (p) => (p.isVector3 ? p.clone() : new THREE.Vector3(p.x ?? 0, p.y ?? 0, p.z ?? 0));
@@ -457,30 +458,7 @@ const skin = () => mats.skin ||= plainSkin();
 /** makeDummy() -> Group: OR table + supine patient (smooth, mostly hidden under drapes). Head at -X, feet at +X, table pad top at y=0.2.
  *  userData: {abdomen: Vector3 (abdomen centre at skin top), skinY, torsoHalfWidth, rightForearm} */
 export function makeDummy() {
-  const g = new THREE.Group(); g.name = 'Dummy';
-  const tableSteel = new THREE.MeshStandardMaterial({ color: 0xaab2ba, metalness: 1, roughness: 0.32, roughnessMap: brushedDetail().rough });
-  const table = new THREE.Mesh(new THREE.BoxGeometry(22, 0.3, 7), tableSteel); table.position.y = -0.15; g.add(table);
-  const pad = new THREE.Mesh(new THREE.BoxGeometry(21, 0.2, 6.4), flat(0x1d2328, { roughness: 0.6 })); pad.position.y = 0.1; g.add(pad);
-  for (const x of [-8, 8]) { const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 6, 20), tableSteel); leg.position.set(x, -3.3, 0); g.add(leg); }
-  const base = new THREE.Mesh(new THREE.BoxGeometry(18, 0.3, 3), flat(0x2a2f34)); base.position.y = -6.4; g.add(base);
-  const add = (geo, x, y, z, mat = skin()) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); g.add(m); return m; };
-  const alongX = (geo) => { geo.rotateZ(Math.PI / 2); return geo; };
-  add(alongX(new THREE.CylinderGeometry(1, 1, 6, 32)), -1, 0.9, 0).scale.set(1, 0.7, 1.5);
-  const chest = add(new THREE.SphereGeometry(1, 32, 20), -3.9, 0.9, 0); chest.scale.set(0.9, 0.7, 1.5);
-  const hips = add(new THREE.SphereGeometry(1, 32, 20), 2.1, 0.9, 0); hips.scale.set(0.9, 0.7, 1.4);
-  add(alongX(new THREE.CylinderGeometry(0.4, 0.45, 0.7, 20)), -5.0, 0.8, 0);
-  add(new THREE.SphereGeometry(0.85, 32, 24), -5.95, 1.05, 0).scale.set(1.1, 0.95, 0.9);
-  for (const sz of [-1, 1]) {
-    add(new THREE.SphereGeometry(0.5, 20, 14), -3.7, 1.0, sz * 1.8);
-    add(alongX(new THREE.CylinderGeometry(0.4, 0.34, 3.4, 20)), -2.0, 0.7, sz * 1.95);
-    add(alongX(new THREE.CylinderGeometry(0.33, 0.27, 2.6, 20)), 0.9, 0.6, sz * 1.95);
-    add(new THREE.CapsuleGeometry(0.24, 0.5, 6, 16), 2.5, 0.45, sz * 1.95).rotation.z = Math.PI / 2;
-    add(alongX(new THREE.CylinderGeometry(0.62, 0.45, 6.6, 24)), 5.5, 0.82, sz * 0.8);
-  }
-  g.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
-  const skinY = 1.8;
-  g.userData = { abdomen: new THREE.Vector3(-0.5, skinY, 0), skinY, torsoHalfWidth: 1.5, rightForearm: new THREE.Vector3(0.9, 0.6, 1.95), kind: 'dummy' };
-  return g;
+  return makePatient(); // PATIENT: body-conforming draped patient, see src/art/patient.js
 }
 
 /** makeDrapeWithWindow(w,h, winW=2.8, winH=2.2) -> {mesh, windowCenter, windowSize, prep, cavity, cavityY}.
