@@ -237,7 +237,8 @@ export function createHUD(root, engine) {
     const dt = Math.min(0.1, (now - last) / 1000); last = now;
     if (running && !paused) {
       const steady = !!engine.input?.steady;
-      if (typeof live.focus === 'number') focus = live.focus;
+      if (typeof engine.input?.focus === 'number') focus = engine.input.focus;
+      else if (typeof live.focus === 'number') focus = live.focus;
       else focus = Math.max(0, Math.min(1, focus + (steady && focus > 0 ? -0.22 : 0.12) * dt));
       const t = tElapsed + (now - t0) / 1000; $('shTime').textContent = fmtTime(t);
       let acc = live.accuracy; if (acc == null) { try { acc = window.game?.state?.()?.metrics?.accuracy; } catch {} }
