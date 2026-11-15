@@ -309,7 +309,7 @@ export function traceGuide(S, { pts, y, tolMm = 4, onCut, onDone }) {
       endRing.material.opacity = st.sMax > L * 0.75 ? pulse : 0.6;
       if (ev.pressed && !st.cutting) {
         const nearStart = tip.distanceTo(pl.points[0]) < 0.09;
-        const nearResume = st.started && c.dist < 0.06 && Math.abs(c.s - st.sMax) < 0.12;
+        const nearResume = st.started && c.dist < 0.08 && Math.abs(c.s - st.sMax) < 0.2;
         if ((!st.started && nearStart) || nearResume) {
           st.cutting = true; st.started = true; st.last = null;
           S.setInstr('Keep the blade on the purple line, steady pace to the end ring');
@@ -326,7 +326,9 @@ export function traceGuide(S, { pts, y, tolMm = 4, onCut, onDone }) {
           if (onCut) onCut(tip);
         }
         st.devSum += dev; st.devN++; st.qSum += dev; st.qN++;
-        if (c.dist < 0.08 && c.s <= st.sMax + 0.12) st.sMax = Math.max(st.sMax, c.s);
+        // tolerant progress: hitches / quick flicks may jump ahead along the line (no soft-lock)
+        if (c.dist < 0.06 && c.s <= st.sMax + 0.35) st.sMax = Math.max(st.sMax, c.s);
+        if (st.sMax > L * 0.6 && tip.distanceTo(pl.points[pl.points.length - 1]) < 0.05) st.sMax = L;
         if (dev > tolMm && st.armed) { st.armed = false; S.error(0.6, 'Off the guide — steer back to the line'); }
         else if (dev < tolMm * 0.6) st.armed = true;
         const q = Math.floor((st.sMax / L) * 4);
