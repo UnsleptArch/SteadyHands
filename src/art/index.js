@@ -141,7 +141,7 @@ function skinCanvas(w, h, o = {}) {
     sg.fillStyle = 'rgb(176,92,40)'; sg.fillRect(0, 0, W, H);
     for (let i = 0; i < 140; i++) { // circular wipe marks, low contrast
       const x = r() * W, y = r() * H, rad = Math.min(W, H) * (0.05 + r() * 0.14);
-      sg.strokeStyle = r() > 0.5 ? 'rgba(150,72,28,0.18)' : 'rgba(200,120,62,0.16)'; sg.lineWidth = rad * 0.35;
+      sg.strokeStyle = r() > 0.5 ? 'rgba(150,72,28,0.09)' : 'rgba(200,120,62,0.08)'; sg.lineWidth = rad * 0.35;
       sg.beginPath(); sg.arc(x, y, rad, 0, Math.PI * 2); sg.stroke();
     }
     sg.globalCompositeOperation = 'destination-in'; sg.drawImage(mask, 0, 0);
