@@ -28,6 +28,21 @@ const SURGERIES = [
     objective: 'Follow the step banner at the top. Even, well-spaced sutures score best.',
     controls: ['Mouse: move the instrument', 'Hold left click: act', 'Hold SHIFT: steady breath', 'Esc: pause'],
     scoring: 'Points per step, suture spacing and accuracy, patient stability.' },
+  { id: 'cholecystectomy', title: 'Lap Cholecystectomy', skill: 'Keyhole gallbladder removal, 5 steps', difficulty: 3, surgery: true,
+    brief: 'Remove the gallbladder through keyhole ports. Achieve the Critical View of Safety before you clip anything.',
+    objective: 'Follow the step banner. Never clip or cut until the Critical View of Safety is confirmed.',
+    controls: ['Mouse: move the instrument', 'Hold left click: grasp / dissect / clip', 'Scroll: dissection depth / rotate view', 'Hold SHIFT: steady breath', 'Esc: pause'],
+    scoring: 'Points per step; tension control, clean dissection, correct identification, 2+1 clip rule; injuries raise heart rate.' },
+  { id: 'central_line', title: 'Central Line', skill: 'Ultrasound-guided vein access, 5 steps', difficulty: 3, surgery: true,
+    brief: 'Place a central venous line in the neck under ultrasound guidance. Find the vein, avoid the artery.',
+    objective: 'Follow the step banner. Keep the needle tip visible on ultrasound.',
+    controls: ['Mouse: move the probe / needle', 'Hold left click: advance', 'Scroll: needle angle', 'Hold SHIFT: steady breath', 'Esc: pause'],
+    scoring: 'Points per step; first-pass success, needle-tip visibility, no arterial puncture, sterile technique.' },
+  { id: 'chest_tube', title: 'Chest Tube', skill: 'Tube thoracostomy, 5 steps', difficulty: 2, surgery: true,
+    brief: 'Insert a chest tube to re-expand a collapsed lung. Find the safe triangle and stay above the rib.',
+    objective: 'Follow the step banner. Stay in the safe triangle, over the top of the rib.',
+    controls: ['Mouse: move the instrument', 'Hold left click: act', 'Hold SHIFT: steady breath', 'Esc: pause'],
+    scoring: 'Points per step; landmark accuracy, blunt dissection over the rib, depth control, patient oxygenation.' },
 ];
 const SURG_ORDER = SURGERIES.map(x => x.id);
 const isSurgery = id => SURG_ORDER.includes(id);

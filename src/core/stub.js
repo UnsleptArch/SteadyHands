@@ -1,7 +1,7 @@
 // CORE — stub level used when a real level module is missing/broken. Playable: trace a dashed line, then score.
 import * as THREE from 'three';
 
-const TITLES = { incision: 'Incision', suture: 'Suture', lap: 'Laparoscopy', appendectomy: 'Appendectomy', laceration: 'Laceration Repair' };
+const TITLES = { incision: 'Incision', suture: 'Suture', lap: 'Laparoscopy', appendectomy: 'Appendectomy', laceration: 'Laceration Repair', cholecystectomy: 'Lap Cholecystectomy', central_line: 'Central Line', chest_tube: 'Chest Tube' };
 
 export function stubLevel(id) {
   return {

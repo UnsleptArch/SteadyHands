@@ -4,7 +4,7 @@ import { buildRoom, makeEnvironment } from './room.js';
 import { stubLevel } from './stub.js';
 
 export const LEVEL_IDS = ['incision', 'suture', 'lap'];
-export const SURGERY_IDS = ['appendectomy', 'laceration'];
+export const SURGERY_IDS = ['appendectomy', 'laceration', 'cholecystectomy', 'central_line', 'chest_tube'];
 const levelPath = (id) => (SURGERY_IDS.includes(id) ? `../surgeries/${id}.js` : `../levels/${id}.js`);
 const DEFAULT_MM = 0.01; // ART convention: 1 unit = 10 cm
 
