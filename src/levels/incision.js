@@ -58,9 +58,10 @@ export default {
       const purple = new THREE.Color(0x5a3aa0);
       for (let i = 0; i < curvePts.length - 1; i += 2) guide.seg(curvePts[i], curvePts[i + 1], 0.03, 0.03, purple);
       group.add(guide.mesh);
-      ribbon = new Ribbon(6000, padTop + 0.006);
-      group.add(ribbon.mesh);
     }
+    const lip = new Ribbon(6000, padTop + 0.004, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.55, depthWrite: false }));
+    ribbon = new Ribbon(6000, padTop + 0.006, new THREE.MeshBasicMaterial({ vertexColors: true, depthWrite: false }));
+    group.add(lip.mesh, ribbon.mesh);
     const startDot = makeDot(0.16, 0x2fbf71, padTop + 0.01);
     startDot.position.set(curvePts[0].x, padTop + 0.01, curvePts[0].z);
     const startRing = makeRing(0.22, 0.28, 0x2fbf71, padTop + 0.01, 0.8);
@@ -98,21 +99,21 @@ export default {
       started: false, done: false, cutting: false, time: 0, strokeT: 0,
       sMax: 0, depth: 0, speed: 0, devSum: 0, devN: 0, devMax: 0,
       dSum: 0, dSq: 0, dN: 0, inBand: 0, offLine: 0, offArmed: true, pauses: 0, stillT: 0, pauseCounted: false,
-      deep: 0, deepArmed: true, strokes: 0, pathLen: 0, lastCut: null, flashT: 0, hint: '',
+      cutEnd: new THREE.Vector3(), hasCutEnd: false, deep: 0, deepArmed: true, strokes: 0, pathLen: 0, lastCut: null, flashT: 0, hint: '',
     };
     const prevRaw = new THREE.Vector3().copy(engine.input.worldRaw);
     const tip = new THREE.Vector3();
     const tmpA = new THREE.Vector3();
-    const groove = new THREE.Color(0x2a0c10), grooveBad = new THREE.Color(0xa0262a);
+    const groove = new THREE.Color(0x2a0c10), grooveBad = new THREE.Color(0xa0262a), lipCol = new THREE.Color(0x8a3a3a);
 
     function addCutPoint(p, devMm) {
       const dn = clamp((st.depth - 1) / 5, 0, 1);
-      if (decal) {
-        const [lx, lz] = toLocal(p.x, p.z);
-        decal.addPoint(lx, lz, dn);
-      } else if (st.lastCut) {
-        ribbon.seg(st.lastCut, p, 0.02 + dn * 0.03, 0.02 + dn * 0.03, devMm > OFFLINE_MM ? grooveBad : groove);
+      if (st.lastCut) {
+        const w = 0.012 + dn * 0.022;
+        lip.seg(st.lastCut, p, w + 0.018, w + 0.018, lipCol);
+        ribbon.seg(st.lastCut, p, w, w, devMm > OFFLINE_MM ? grooveBad : groove);
       }
+      st.cutEnd.copy(p); st.hasCutEnd = true;
       if (st.lastCut) st.pathLen += Math.hypot(p.x - st.lastCut.x, p.z - st.lastCut.z);
       st.lastCut = (st.lastCut || new THREE.Vector3()).copy(p);
     }
@@ -120,7 +121,6 @@ export default {
     function endStroke() {
       st.cutting = false;
       st.lastCut = null;
-      if (decal) decal.endStroke();
     }
 
     function metrics() {
@@ -174,7 +174,8 @@ export default {
         // engage / disengage
         if (down && !st.cutting) {
           const nearStart = tip.distanceTo(curvePts[0].clone().setY(padTop)) < 0.5;
-          const nearResume = st.started && devMm < 4 && Math.abs(c.s - st.sMax) < 0.8;
+          const nearResume = st.started && devMm < 5 && (Math.abs(c.s - st.sMax) < 1.5 ||
+            (st.hasCutEnd && Math.hypot(tip.x - st.cutEnd.x, tip.z - st.cutEnd.z) < 0.8));
           if ((!st.started && nearStart) || nearResume) {
             if (st.started && st.strokes > 0) st.pauses++; // lifting the blade mid-cut is a hesitation
             st.started = true;
@@ -200,7 +201,7 @@ export default {
             st.dSum += st.depth; st.dSq += st.depth * st.depth; st.dN++;
             if (st.depth >= DEPTH_BAND[0] && st.depth <= DEPTH_BAND[1]) st.inBand++;
           }
-          if (devMm < 6 && c.s <= st.sMax + 1.0) st.sMax = Math.max(st.sMax, c.s);
+          if (devMm < 4 && c.s - st.sMax < 3.0) st.sMax = Math.max(st.sMax, c.s);
           // off-line events (with hysteresis)
           if (devMm > OFFLINE_MM && st.offArmed) {
             st.offLine++; st.offArmed = false; st.flashT = 0.6;
@@ -221,7 +222,9 @@ export default {
           else if (st.strokeT > 0.4 && st.depth < DEPTH_BAND[0]) hint = 'Too fast: the cut is only a scratch';
           else if (!steadyOf(input) && input.focus > 0.3 && devMm > 1) hint = 'Hold SHIFT for a steady breath';
           else hint = 'Good. Even pace, follow the line to the end dot';
-          if (st.sMax >= L - 0.15) finish();
+          const atEnd = Math.hypot(tip.x - endP.x, tip.z - endP.z) < 0.5;
+          const meanMm = st.devN ? st.devSum / st.devN / MM : 0;
+          if (st.sMax >= L - 0.15 || (atEnd && st.sMax > L * 0.5 && meanMm < 4)) { st.sMax = L; finish(); }
         } else if (!st.done) {
           hint = st.started ? 'Blade lifted: press again where your cut ended' : 'Press and hold on the green dot to engage the blade';
         }

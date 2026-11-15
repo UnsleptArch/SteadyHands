@@ -256,6 +256,7 @@ export default {
           } else if (!hint) {
             if (offMm > TEAR_MM * 0.7) hint = `Off the curve by ${offMm.toFixed(1)} mm: follow the arc`;
             else if (!steadyOf(input) && input.focus > 0.3 && offMm > 1.2) hint = 'Hold SHIFT for a steady breath';
+            else if (st.k > N_SAMP * 0.85) hint = 'Keep holding until the needle tip exits';
             else hint = 'Sweep along the arc: rotate the needle through';
           }
         } else if (st.mode === 'pull') {
