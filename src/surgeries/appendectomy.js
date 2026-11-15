@@ -180,7 +180,9 @@ export default {
           const handRing = makeRing(0.035, 0.05, 0xffffff, y, 0.5); handRing.material.depthTest = false; group.add(handRing);
           let found = false, holdT = 0, near = false, touchArmed = true, attempts = 0;
           const mech = {
-            hideMarker: true, tip, toolLook: pivot,
+            hideMarker: true, tip, toolLook: pivot, mirrored: true,
+            // pointer (hand) position that puts the mirrored grasper tip on the appendix tip; press and hold 0.8 s there
+            targets: () => [{ label: 'hand-press-and-hold', p: V(centre.x - (target.x - centre.x) / GAIN, y, centre.z - (target.z - centre.z) / GAIN), holdSec: 0.8 }],
             frac: () => (found ? 0.5 : 0) + 0.5 * Math.min(1, holdT / 0.8),
             update(ev, dt) {
               tip.set(centre.x - (ev.p.x - centre.x) * GAIN, y - 0.03, centre.z - (ev.p.z - centre.z) * GAIN);

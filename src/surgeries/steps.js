@@ -237,6 +237,12 @@ export function createSurgery(cfg) {
         engine.emit('level:progress', { id, pct: Math.min(0.99, (idx + (transT > 0 ? 1 : frac)) / steps.length), hint: steps[idx] ? steps[idx].instr : '' });
       }
     },
+    /** For RECBOT / automation: world + screen positions of the current step's targets, in the order to act on them. */
+    targets() {
+      if (!mech || !mech.targets) return { step: idx + 1, title: steps[idx] ? steps[idx].title : '', ready: controller.ready, targets: [] };
+      const list = mech.targets().map((t) => ({ ...t, p: { x: t.p.x, y: t.p.y, z: t.p.z }, screen: engine.toScreen(t.p) }));
+      return { step: idx + 1, title: steps[idx].title, ready: controller.ready, plane: steps[idx].plane, mirrored: !!mech.mirrored, targets: list };
+    },
     metrics() {
       return { totalScore: S.total, timeSec: Math.round(S.time * 10) / 10, tissueErrors: S.m.tissueErrors, missedActions: S.m.missedActions };
     },
@@ -351,6 +357,7 @@ export function traceGuide(S, { pts, y, tolMm = 4, onCut, onDone }) {
     },
     dispose() { g.traverse((o) => o.geometry && o.geometry.dispose()); },
     group: g, groove,
+    targets: () => [{ label: 'press-start', p: pl.points[0].clone() }, ...pl.points.filter((_, k) => k % 4 === 0).slice(1).map((p) => ({ label: 'path', p: p.clone() })), { label: 'end', p: pl.points[pl.points.length - 1].clone() }],
   };
   return mech;
 }
@@ -406,6 +413,7 @@ export function dragHandles(S, { handles, y, onChange, grabR = 0.16 }) {
       return locked.every(Boolean);
     },
     group: g,
+    targets: () => handles.flatMap((h, i) => (locked[i] ? [] : [{ label: `handle${i + 1}-grab`, p: h.obj.position.clone().setY(y) }, { label: `handle${i + 1}-drop`, p: h.to.clone().setY(y) }])),
     async bot(bot) {
       for (let i = 0; i < handles.length; i++) {
         const h = handles[i];
@@ -455,6 +463,7 @@ export function clickTargets(S, { targets, y, radius = 0.05, onHit, label = 'Cli
     async bot(bot) { for (const p of targets) { await botClick(bot, p.clone().setY(y), 0.7); await bot.wait(0.25); } },
     dispose() {},
     group: g,
+    targets: () => targets.slice(next).map((p, k) => ({ label: `click${next + k + 1}`, p: p.clone().setY(y) })),
   };
   return mech;
 }
@@ -488,6 +497,7 @@ export function sutureBites(S, { pairs, y, radius = 0.07, onStitch, color = 0x33
   let i = 0, active = false, entryErr = 0;
   const mech = {
     group: g, keep: true,
+    targets: () => pairs.slice(i).flatMap((p, k) => [{ label: `stitch${i + k + 1}-press`, p: p.entry.clone() }, { label: `stitch${i + k + 1}-release`, p: p.exit.clone() }]),
     frac: () => i / pairs.length,
     update(ev) {
       const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 210);
@@ -558,6 +568,7 @@ export function holdTargets(S, { targets, y, radius = 0.06, holdT = 0.8, onDone,
   let cur = -1;
   const mech = {
     group: g, keep: true,
+    targets: () => items.filter((it) => !it.done).map((it) => ({ label: 'press-and-hold', p: it.p.clone(), holdSec: holdT })),
     frac: () => items.filter((it) => it.done).length / items.length,
     update(ev, dt) {
       const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 210);
@@ -611,6 +622,7 @@ export function wipe(S, { specks, y, radius = 0.12, rate = 2.2, gauze }) {
   const last = new THREE.Vector3(); let has = false, mark = 0;
   const left = () => items.filter((it) => it.dirt > 0).length;
   const mech = {
+    targets: () => items.filter((it) => it.dirt > 0).map((it) => ({ label: 'rub', p: it.p.clone() })),
     hideMarker: true,
     frac: () => 1 - left() / items.length,
     update(ev, dt) {
@@ -660,6 +672,7 @@ export function dragDrop(S, { obj, target, y, radius = 0.12, label = 'Placed', o
   let held = false, done = false;
   const mech = {
     group: g,
+    targets: () => (done ? [] : [{ label: 'drag-from', p: obj.position.clone() }, { label: 'drop-on', p: target.clone() }]),
     hideMarker: false,
     frac: () => (done ? 1 : held ? 0.5 : 0),
     update(ev) {
