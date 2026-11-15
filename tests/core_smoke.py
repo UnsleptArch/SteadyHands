@@ -10,12 +10,14 @@ cur = ["boot"]
 with sync_playwright() as p:
     gpu = ["--use-angle=vulkan", "--enable-gpu", "--ignore-gpu-blocklist", "--enable-features=Vulkan"]
     sw = ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"]
-    b = p.chromium.launch(args=gpu if os.environ.get("GPU") else sw)
+    egl = ["--use-gl=angle", "--use-angle=gl-egl", "--ignore-gpu-blocklist", "--enable-gpu"]
+    g = os.environ.get("GPU")
+    b = p.chromium.launch(args=egl if g == "egl" else gpu if g else sw)
     pg = b.new_page(viewport={"width": int(os.environ.get("W", 1280)), "height": int(os.environ.get("H", 720))})
     pg.set_default_timeout(90000)
     pg.on("console", lambda m: m.type == "error" and errs.append(f"[{cur[0]}] " + m.text))
     pg.on("pageerror", lambda e: errs.append("PAGEERROR " + str(e)))
-    pg.goto(f"http://localhost:{PORT}/")
+    pg.goto(f"http://localhost:{PORT}/" + ("?safe=1" if os.environ.get("SAFE") else ""))
     pg.wait_for_function("window.game && window.game.ready", timeout=60000)
     pg.screenshot(path=f"{OUT}_menu.png")
     cur[0] = "menu"
