@@ -272,7 +272,7 @@ export default {
         if (!st.done) {
           let hint;
           if (st.msgT > 0) hint = st.msg;
-          else if (!st.started) hint = 'Fulcrum effect: move the mouse and watch the tip go the opposite way';
+          else if (!st.started) hint = 'Controls are INVERTED (fulcrum effect): move the mouse and the tip goes the opposite way';
           else if (st.held) hint = 'Carry it to a green post on the right and release';
           else if (!steadyOf(input) && input.focus > 0.5 && minD < 1.2) hint = 'Close to a vessel: hold SHIFT to steady';
           else hint = `Grab a bead: hover the jaws over it and hold the mouse (${st.placed}/3 moved)`;
