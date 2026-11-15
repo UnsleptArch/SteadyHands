@@ -90,7 +90,12 @@ export default {
       const b2 = new THREE.Box3().setFromObject(organ);
       organ.position.x += C.x - (b2.min.x + b2.max.x) / 2;
       organ.position.z += C.z - (b2.min.z + b2.max.z) / 2;
-      organ.position.y += Math.min(prepY - 0.035 - b2.max.y, cavityY + 0.02 - b2.min.y);
+      organ.scale.y *= 0.5; // flatter so bowel + appendix fit the shallow cavity (camera is overhead)
+      organ.updateMatrixWorld(true);
+      if (organ.userData.curve) { // rest the appendix on the cavity floor
+        let lo = Infinity; for (const q of organ.userData.curve.getPoints(20)) lo = Math.min(lo, organ.localToWorld(q.clone()).y);
+        organ.position.y += cavityY + 0.012 + 0.09 * organ.scale.y - lo;
+      } else organ.position.y += cavityY + 0.02 - new THREE.Box3().setFromObject(organ).min.y;
       organ.updateMatrixWorld(true);
       const ud = organ.userData;
       if (ud.curve) {
@@ -116,7 +121,7 @@ export default {
       arteryPts = apCurve.getPoints(20).map((p, i) => p.clone().add(V(0, -0.03, 0.28 * (1 - 0.7 * i / 20))));
       const art2 = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(arteryPts), 40, 0.015, 6), flat(0xb02e32)); group.add(art2);
     }
-    const AP_R = organ && organ.userData.curve ? 0.09 * organ.scale.x : 0.07;
+    const AP_R = organ && organ.userData.curve ? 0.09 * organ.scale.y : 0.07;
     const apTop = (t) => apCurve.getPoint(t).clone().add(V(0, AP_R, 0));
     const AP_Y = apCurve.getPoints(10).reduce((a, p) => a + p.y, 0) / 11 + AP_R; // work plane for steps on the appendix
     const arteryDist = (p) => { let best = Infinity; for (const q of arteryPts) best = Math.min(best, Math.hypot(p.x - q.x, p.z - q.z, (p.y - q.y) * 0.5)); return best; };
@@ -132,11 +137,11 @@ export default {
     const retractors = [-1, 1].map((s) => {
       const r = new THREE.Group();
       // Army-Navy style: thin curved lip hooked into the wound, flat shank bending out over the skin, finger hole
-      const lip = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.34, 18, 1, true, 0, Math.PI * 0.9), steelMat);
-      lip.rotation.z = Math.PI / 2; lip.rotation.x = s > 0 ? Math.PI * 0.55 : -Math.PI * 0.45; lip.position.set(0, -0.06, -s * 0.0); r.add(lip);
-      const shank = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.012, 0.42), steelMat);
+      const lip = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.13, 0.01), steelMat); lip.position.set(0, -0.055, 0); lip.rotation.x = s * 0.15; r.add(lip);
+      const toe = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.01, 0.06), steelMat); toe.position.set(0, -0.12, -s * 0.03); r.add(toe);
+      const shank = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.01, 0.42), steelMat);
       shank.position.set(0, 0.03, s * 0.25); shank.rotation.x = s * 0.08; r.add(shank);
-      const neck = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.012, 0.09), steelMat);
+      const neck = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.01, 0.09), steelMat);
       neck.position.set(0, 0.0, s * 0.04); neck.rotation.x = -s * 0.9; r.add(neck);
       const ring = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.013, 8, 20), steelMat);
       ring.rotation.x = Math.PI / 2; ring.position.set(0, 0.045, s * 0.5); r.add(ring);

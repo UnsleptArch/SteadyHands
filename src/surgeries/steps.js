@@ -8,7 +8,7 @@ import { createVitals } from './vitals.js';
 
 export const MM = 0.01;
 const TEAL = 0x3ec5b5;
-const TOOL_SCALE = { scalpel: 0.6, driver: 0.6, grasper: 0.8, syringe: 0.7 };
+const TOOL_SCALE = { scalpel: 0.5, driver: 0.42, grasper: 0.8, syringe: 0.7 };
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
 // ------------------------------------------------------------------ grading
