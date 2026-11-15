@@ -50,6 +50,19 @@ function makeTool(art, name) {
   const f = { scalpel: 'makeScalpel', grasper: 'makeGrasper', driver: 'makeNeedleDriver', forceps: 'makeGrasper' }[name];
   let mesh = null;
   try { if (f && typeof art[f] === 'function') { const r = art[f](); mesh = r && (r.isObject3D ? r : r.mesh); } } catch (e) { console.warn('[surgery] tool', name, e); }
+  if (!mesh && name === 'syringe') {
+    mesh = new THREE.Group();
+    const needle = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.25, 6), new THREE.MeshStandardMaterial({ color: 0xd8dde2, metalness: 0.9, roughness: 0.2 }));
+    needle.rotation.x = Math.PI / 2; needle.position.z = 0.125; mesh.add(needle);
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.012, 0.06, 10), new THREE.MeshStandardMaterial({ color: 0x3ec5b5, roughness: 0.5 }));
+    hub.rotation.x = Math.PI / 2; hub.position.z = 0.27; mesh.add(hub);
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.055, 0.6, 16), new THREE.MeshStandardMaterial({ color: 0xe8f1f6, transparent: true, opacity: 0.55, roughness: 0.15 }));
+    barrel.rotation.x = Math.PI / 2; barrel.position.z = 0.6; mesh.add(barrel);
+    const fluid = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.4, 12), new THREE.MeshStandardMaterial({ color: 0x9fd4ff, roughness: 0.3 }));
+    fluid.rotation.x = Math.PI / 2; fluid.position.z = 0.52; mesh.add(fluid);
+    const plunger = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.02, 16), new THREE.MeshStandardMaterial({ color: 0x1d2127 }));
+    plunger.rotation.x = Math.PI / 2; plunger.position.z = 0.95; mesh.add(plunger);
+  }
   if (!mesh) {
     mesh = new THREE.Group();
     const m = new THREE.MeshStandardMaterial({ color: 0xc8d0d8, metalness: 0.85, roughness: 0.3 });

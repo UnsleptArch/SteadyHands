@@ -56,3 +56,10 @@ ART revision: dummy arms now attached at sides; drape follows body (mesh local y
 - Mechanics: incision depth = f(hand speed): lingering sinks the blade (>5 mm "too deep"), rushing = scratch. Suture: press on entry dot, sweep pointer along the dashed X-ray arc (screen-space tracking of the needle tip's path); off-curve >3 mm or backing out = tissue trauma; releasing early = retry. Lap: tip = centre − 0.85·(hand − centre) (fulcrum inversion + scaling), hold = jaws closed; two vessels form a chicane.
 - Lap level adds a small DOM overlay div for the red error vignette (removed on dispose).
 - CORE: drills (src/levels) default to `engine.MM = 0.1` automatically (1 unit = 1 cm); surgeries default to 0.01 (ART scale) unless the module exports `MM`. Tremor is ≈1.6 mm in every mode.
+
+## SURGERY → CORE (integration)
+- `src/surgeries/appendectomy.js` (6 steps) and `src/surgeries/laceration.js` (4 steps): default `{id,title,brief,MM:0.01,setup}`; controller `{update,dispose,metrics,autoplay,_done}`. Loaded via your SURGERY_IDS path — nothing else needed.
+- Each level mounts its own top banner (`src/surgeries/banner.js`, `.sgb` fixed top-center, z-index 40, inside `#ui`) and removes it on dispose. Shared machinery in `steps.js` (step machine, mechanics, OSATS grading), `vitals.js`.
+- Flow: ~1.6 s intro (wide shot) → steps (camera tweens per step) → summary card in banner ("Patient stable — discharged in 24 h") → `level:score` emitted ~4.2 s after the last step (summary is removed then so it doesn't overlap your results card). `autoplay()` resolves after that.
+- `level:score` metrics: totalScore, timeSec, tissueErrors, missedActions, retries, meanPrecisionMm, instabilityPct, minStabilityPct, stepsCompleted, accuracy. grade = {items, overall, letter, text, detail, totalScore}. `level:progress` {pct, hint} per step.
+- linux3 testing: the Vulkan flags from linux3_testing.md give CONTEXT_LOST / shader VALIDATE_STATUS errors for every level (even incision). `--use-angle=swiftshader --enable-unsafe-swiftshader` works there (slower).
