@@ -1,0 +1,27 @@
+# Recording the demo (RECBOT)
+
+The demo video shows **real gameplay**: `scripts/demo_bot.py` drives the game only through Playwright
+`page.mouse` / `page.keyboard` (OS-level input events). No game code is changed.
+
+## How the bot knows where to go
+Each level already contains an expert planner (its `autoplay()` script). At runtime the bot replaces
+`engine.setBotPointer/setBotDown` (via `page.evaluate`) with a queue, so the engine never gets bot input. Each
+planned world point is projected through the **live camera** onto the canvas (on the current work plane) and replayed
+as real mouse moves; button presses become `mouse.down/up`, with SHIFT (steady hand) held while the button is down.
+Human-looking motion: hops between targets are eased, slightly curved Bezier glides with a small overshoot and
+micro-correction; strokes follow the planned path frame by frame. Menus are clicked the same way (glide + click).
+
+## Visible cursor
+Headless Chromium draws no OS cursor, so `?democursor=1` loads `src/ui/cursor.js` (a crosshair that turns red
+while pressed). `record_demo.py` adds the param automatically.
+
+## Run (on linux3, folder ~/sh-rec, port 8530)
+```
+rsync -az --delete --exclude .git --exclude tests/artifacts ./ unslept@linux3:sh-rec/
+ssh -n unslept@linux3 'cd ~/sh-rec && (setsid nohup python3 -m http.server 8530 >/dev/null 2>&1 &)'
+ssh -n unslept@linux3 'cd ~/sh-rec && uv run --no-project --with playwright --with imageio-ffmpeg python scripts/record_demo.py demo.mp4'
+```
+Options: `--only <id>` (single level), `--levels a,b,c`, `--results-secs 4`, `--no-video` (dry run, grades only),
+`--url`. Chromium flags: `--use-gl=angle --use-angle=gl-egl --ignore-gpu-blocklist --enable-gpu` (shadows on).
+Storyboard: title -> How to play -> incision -> suture -> lap -> appendectomy -> [cholecystectomy, central_line,
+chest_tube when not placeholders] -> title. Page load is trimmed; output is H.264 30 fps; duration + grades printed.
