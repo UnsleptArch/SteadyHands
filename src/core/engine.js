@@ -1,6 +1,6 @@
 // CORE — engine: renderer, camera, OR scene, input (pointer -> work plane, tremor, steady), level lifecycle, events.
 import * as THREE from 'three';
-import { buildRoom } from './room.js';
+import { buildRoom, makeEnvironment } from './room.js';
 import { stubLevel } from './stub.js';
 
 export const LEVEL_IDS = ['incision', 'suture', 'lap'];
@@ -24,10 +24,11 @@ export function createEngine(canvas, opts = {}) {
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x07090c);
-  scene.fog = new THREE.Fog(0x07090c, 90, 220);
+  scene.fog = new THREE.Fog(0x07090c, 14, 40);
 
-  const camera = new THREE.PerspectiveCamera(40, 1, 0.5, 500);
-  const camHome = { pos: new THREE.Vector3(0, 34, 26), target: new THREE.Vector3(0, 0, 0) };
+  const camera = new THREE.PerspectiveCamera(40, 1, 0.05, 120);
+  const camHome = { pos: new THREE.Vector3(0, 6.0, 4.9), target: new THREE.Vector3(0, 0, 0) };
+  const CAM_DEFAULT = { pos: camHome.pos.clone(), target: camHome.target.clone() };
   camera.position.copy(camHome.pos);
   camera.lookAt(camHome.target);
 
@@ -35,6 +36,7 @@ export function createEngine(canvas, opts = {}) {
   const events = new EventTarget();
   const art = opts.art || {};
   const room = buildRoom(scene, art);
+  if (!scene.environment) { try { scene.environment = makeEnvironment(renderer); } catch (err) { console.warn('[core] env map failed', err); } }
 
   // ---------- input ----------
   const input = {
@@ -76,9 +78,9 @@ export function createEngine(canvas, opts = {}) {
   window.addEventListener('keyup', (e) => input.keys.delete(e.code));
   window.addEventListener('blur', () => { input.keys.clear(); input.pointer.down = false; });
 
-  // Tremor model, shared by all drills. Amplitudes in cm (1 unit = 1 cm).
+  // Tremor model, shared by all drills. Amplitudes in world units (1 unit = 10 cm).
   const nx = makeNoise(Math.random() * 100), nz = makeNoise(Math.random() * 100 + 50);
-  const TREMOR = { normal: 0.22, steady: 0.04, drain: 0.28, regen: 0.14 };
+  const TREMOR = { normal: 0.022, steady: 0.004, drain: 0.28, regen: 0.14 };
 
   function updateInput(dt, t) {
     const wantSteady = input.keys.has('ShiftLeft') || input.keys.has('ShiftRight');
@@ -113,7 +115,7 @@ export function createEngine(canvas, opts = {}) {
   const tickFns = new Set();
   const engine = {
     THREE, scene, camera, renderer, clock, input, events, art, room, raycaster,
-    MM: 0.1,
+    MM: 0.01,
     LEVEL_IDS,
     levels: {},          // id -> level module (meta: id,title,brief) once loaded
     currentLevel: null,  // {id, title, module, controller}
@@ -128,6 +130,7 @@ export function createEngine(canvas, opts = {}) {
     setBotPointer(v) { botPointer = v ? v.clone() : null; },
     setBotDown(b) { botDown = b === null || b === undefined ? null : !!b; if (botDown === null) input.pointer.down = false; },
     setPaused(b) { engine.paused = !!b; engine.emit('pause', { paused: engine.paused }); },
+    setCameraHome(pos, target) { if (pos) camHome.pos.copy(pos); if (target) camHome.target.copy(target); engine.resetCamera(); },
     resetCamera() { camera.position.copy(camHome.pos); camera.lookAt(camHome.target); },
     /** project a world point to screen pixels (for UI overlays) */
     toScreen(v) {
@@ -172,6 +175,7 @@ export function createEngine(canvas, opts = {}) {
     const mod = await getLevelModule(id);
     if (token !== loadToken) return null;
     plane.constant = 0;
+    camHome.pos.copy(CAM_DEFAULT.pos); camHome.target.copy(CAM_DEFAULT.target); engine.resetCamera();
     engine.tremorScale = 1;
     engine.botNoTremor = false;
     botPointer = null; botDown = null;
@@ -205,7 +209,7 @@ export function createEngine(canvas, opts = {}) {
     for (const o of cur.added) if (o.parent) o.parent.remove(o);
     botPointer = null; botDown = null; input.pointer.down = false;
     plane.constant = 0;
-    engine.resetCamera();
+    camHome.pos.copy(CAM_DEFAULT.pos); camHome.target.copy(CAM_DEFAULT.target); engine.resetCamera();
     engine.status.level = null;
     engine.emit('level:end', { id: cur.id });
   }

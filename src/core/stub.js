@@ -15,38 +15,43 @@ export function stubLevel(id) {
       scene.add(group);
 
       let pad;
-      try { pad = art.makeTissuePad ? art.makeTissuePad().mesh : null; } catch { pad = null; }
+      try { pad = art.makeTissuePad ? art.makeTissuePad() : null; } catch { pad = null; }
+      if (pad && pad.mesh) pad = pad.mesh;
       if (!pad) {
-        pad = new THREE.Mesh(new THREE.BoxGeometry(24, 1.2, 14),
+        pad = new THREE.Mesh(new THREE.BoxGeometry(6, 0.35, 4),
           new THREE.MeshStandardMaterial({ color: 0xe8c9b8, roughness: 0.65 }));
-        pad.position.y = 0.6;
+        pad.position.y = 0.175;
+        pad.userData.surfaceY = 0.35;
       }
       pad.receiveShadow = true;
       group.add(pad);
-      engine.setWorkPlane(1.2);
+      const Y = pad.userData.surfaceY ?? 0.35;
+      engine.setWorkPlane(Y);
 
-      const x0 = -9, x1 = 9;
-      const lineGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x0, 1.25, 0), new THREE.Vector3(x1, 1.25, 0)]);
-      const line = new THREE.Line(lineGeo, new THREE.LineDashedMaterial({ color: 0x3a6fd8, dashSize: 0.6, gapSize: 0.4 }));
+      const x0 = -2.2, x1 = 2.2;
+      const lineGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x0, Y + 0.003, 0), new THREE.Vector3(x1, Y + 0.003, 0)]);
+      const line = new THREE.Line(lineGeo, new THREE.LineDashedMaterial({ color: 0x3a6fd8, dashSize: 0.08, gapSize: 0.05 }));
       line.computeLineDistances();
       group.add(line);
 
       let tool;
-      try { tool = art.makeScalpel ? art.makeScalpel().mesh : null; } catch { tool = null; }
+      try { tool = art.makeScalpel ? art.makeScalpel() : null; } catch { tool = null; }
+      if (tool && tool.mesh) tool = tool.mesh;
       if (!tool) {
         tool = new THREE.Group();
-        const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 10, 16),
+        const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.2, 16),
           new THREE.MeshStandardMaterial({ color: 0xb8c0c8, metalness: 0.9, roughness: 0.25 }));
-        handle.position.y = 5.5;
-        handle.rotation.z = 0.35;
+        handle.rotation.x = Math.PI / 2;
+        handle.position.z = 0.6;
         handle.castShadow = true;
-        const tip = new THREE.Mesh(new THREE.ConeGeometry(0.3, 1.2, 12),
-          new THREE.MeshStandardMaterial({ color: 0xdfe6ec, metalness: 1, roughness: 0.15 }));
-        tip.rotation.x = Math.PI;
-        tip.position.y = 0.6;
-        tool.add(handle, tip);
+        tool.add(handle);
       }
-      group.add(tool);
+      // tip at local origin, body toward +Z: tilt the handle up toward the camera
+      const toolRig = new THREE.Group();
+      tool.rotation.x = -0.75;
+      toolRig.rotation.y = 0.5;
+      toolRig.add(tool);
+      group.add(toolRig);
 
       const trail = [];
       const trailGeo = new THREE.BufferGeometry();
@@ -57,10 +62,10 @@ export function stubLevel(id) {
       const controller = {
         update(dt) {
           t += dt;
-          tool.position.copy(input.world);
+          toolRig.position.copy(input.world);
           if (done) return;
-          if (input.pointer.down && input.world.x > x0 - 1 && input.world.x < x1 + 1 && Math.abs(input.world.z) < 6) {
-            trail.push(input.world.clone().setY(1.27));
+          if (input.pointer.down && input.world.x > x0 - 0.1 && input.world.x < x1 + 0.1 && Math.abs(input.world.z) < 1) {
+            trail.push(input.world.clone().setY(Y + 0.004));
             if (trail.length > 1) trailGeo.setFromPoints(trail);
             if (input.world.x > maxX) maxX = input.world.x;
             devSum += Math.abs(input.world.z); n++;
@@ -82,11 +87,11 @@ export function stubLevel(id) {
         },
         async autoplay() {
           engine.botNoTremor = false;
-          engine.setBotPointer(new THREE.Vector3(x0 - 0.5, 1.2, 0));
+          engine.setBotPointer(new THREE.Vector3(x0 - 0.05, Y, 0));
           engine.setBotDown(true);
           const v = new THREE.Vector3();
-          for (let x = x0 - 0.5; x <= x1 + 0.5 && engine.currentLevel?.controller === controller; x += 0.25) {
-            engine.setBotPointer(v.set(x, 1.2, 0));
+          for (let x = x0 - 0.05; x <= x1 + 0.05 && engine.currentLevel?.controller === controller; x += 0.04) {
+            engine.setBotPointer(v.set(x, Y, 0));
             await new Promise((r) => setTimeout(r, 16));
           }
           engine.setBotDown(false);
