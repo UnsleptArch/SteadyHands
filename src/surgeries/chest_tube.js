@@ -8,6 +8,7 @@ import { createSurgery, holdTargets, dragDrop, clickTargets, MM, botClick } from
 import { makeRing, makeDot, Ribbon } from '../levels/_common.js';
 
 const ID = 'chest_tube';
+const USE_THORAX = false;
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const sstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
@@ -71,7 +72,7 @@ const PANEL_CSS = `
 .ctp{position:fixed;right:18px;top:50%;transform:translateY(-42%);z-index:35;pointer-events:none;display:flex;flex-direction:column;gap:10px;
   font-family:Inter,system-ui,sans-serif;color:#e8edf2}
 .ctp-card{background:rgba(11,15,19,.88);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:8px 10px 10px;box-shadow:0 8px 24px rgba(0,0,0,.35)}
-.ctp-card h4{margin:0 0 6px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:#8b98a5;font-weight:600;display:flex;justify-content:space-between;gap:8px}
+.ctp-card h4{margin:0 0 6px;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#8b98a5;font-weight:600;display:flex;justify-content:space-between;gap:8px}
 .ctp-card h4 b{color:#3EC5B5;font-weight:700;letter-spacing:.04em}
 .ctp canvas{display:block;border-radius:6px}
 `;
@@ -79,8 +80,8 @@ const PANEL_CSS = `
 function createPanel(parent, st) {
   if (!document.getElementById('ctp-style')) { const s = document.createElement('style'); s.id = 'ctp-style'; s.textContent = PANEL_CSS; document.head.appendChild(s); }
   const root = document.createElement('div'); root.className = 'ctp';
-  root.innerHTML = `<div class="ctp-card" data-k="xsec" style="display:none"><h4>Cross-section · intercostal space <b data-k="depth">skin</b></h4><canvas width="250" height="180"></canvas></div>
-    <div class="ctp-card"><h4>Chest X-ray · R pneumothorax <b data-k="lung">35%</b></h4><canvas width="250" height="230"></canvas></div>`;
+  root.innerHTML = `<div class="ctp-card" data-k="xsec" style="display:none"><h4>Intercostal space <b data-k="depth">skin</b></h4><canvas width="250" height="180"></canvas></div>
+    <div class="ctp-card"><h4>CXR · R pneumothorax <b data-k="lung">35%</b></h4><canvas width="250" height="230"></canvas></div>`;
   parent.appendChild(root);
   const [xc, cc] = root.querySelectorAll('canvas');
   const xs = xc.getContext('2d'), cx = cc.getContext('2d');
@@ -235,6 +236,17 @@ export default {
       skin.geometry = geo; skin.rotation.set(0, 0, 0); skin.position.set(0, 0, 0); skin.receiveShadow = true;
     }
     const surf = (x, z) => Y0 + 0.0005 + skinHeight(x, z);
+    // optional deep anatomy (ribs, pleura, lung that re-inflates) shown through translucent skin from the dissection on
+    let thorax = null, bodyBox = null, see = 0, seeTarget = 0;
+    if (field && field.mesh) field.mesh.traverse((o) => { if (o.isMesh && o.geometry.type === 'BoxGeometry' && !bodyBox) bodyBox = o; });
+    // Deep-anatomy reveal is off: at the close dissection angle the rib parallax misaligned with the palpated ribs.
+    if (USE_THORAX) import('../art/anatomy.js').then((m) => {
+      if (disposedFlag || !m.makeThoraxSet) return;
+      try {
+        thorax = m.makeThoraxSet({ side: 'right', chestWall: false, inflation: phys.lung, ribDepth: 0.035 });
+        thorax.group.position.y = Y0 - 0.01; thorax.group.visible = false; group.add(thorax.group);
+      } catch (e) { console.warn('[chest_tube] thorax', e); thorax = null; }
+    }).catch(() => {});
     const areola = new THREE.Mesh(new THREE.CircleGeometry(0.07, 32), new THREE.MeshStandardMaterial({ color: 0x9a6250, roughness: 0.7, transparent: true, opacity: 0.8, depthWrite: false }));
     areola.rotation.x = -Math.PI / 2; areola.position.set(NIP.x, surf(NIP.x, NIP.z) + 0.003, NIP.z); group.add(areola);
     // draped arm abducted above the head (top-right)
@@ -545,7 +557,7 @@ export default {
           if (siteMark) siteMark.visible = false;
           for (const l of ribLabels) l.visible = false;
           const bandMesh = (z0, z1, color, op) => {
-            const m = new THREE.Mesh(new THREE.PlaneGeometry(0.34, z1 - z0), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: op, depthWrite: false }));
+            const m = new THREE.Mesh(new THREE.PlaneGeometry(0.34, z1 - z0), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: op, depthWrite: false, depthTest: false }));
             m.rotation.set(-Math.PI / 2, 0, -Math.atan(SLOPE)); m.position.set(x, surf(x, (z0 + z1) / 2) + 0.008, (z0 + z1) / 2); m.renderOrder = 4; group.add(m); return m;
           };
           const band = bandMesh(green[0], green[1], 0x3ec5b5, 0.18), redBand = bandMesh(red[0], red[1], 0xe5484d, 0.28); redBand.visible = false;
@@ -837,6 +849,19 @@ export default {
       if (seep) { seep.userData.t += dt; seep.scale.setScalar(Math.min(1.4, 0.4 + seep.userData.t * 0.5)); seep.material.opacity = 0.55 * Math.max(0.3, 1 - seep.userData.t / 12); }
       if (drain.visible) { swing += dt; drain.userData.col.position.y = 0.2 + (0.01 + 0.03 * phys.lung) * Math.sin(swing * 1.6); }
       panelT -= dt; if (panelT <= 0) { panelT = 0.06; panel.draw(); }
+      if (thorax) {
+        const si = controller.stepIndex;
+        seeTarget = si === 3 && !controller.S.done ? 1 : 0;
+        see += (seeTarget - see) * Math.min(1, dt * 2.5);
+        const on = see > 0.02;
+        thorax.group.visible = on;
+        if (bodyBox) bodyBox.visible = !on;
+        if (skin && skin.material) {
+          if (skin.material.transparent !== on) { skin.material.transparent = on; skin.material.depthWrite = !on; skin.material.needsUpdate = true; skin.renderOrder = on ? 8 : 0; }
+          skin.material.opacity = 1 - 0.42 * see;
+        }
+        try { thorax.setInflation(phys.lung); if (thorax.update) thorax.update(performance.now() / 1000); } catch { /* decorative */ }
+      }
     };
     const baseDispose = controller.dispose;
     controller.dispose = () => {
