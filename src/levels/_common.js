@@ -335,3 +335,73 @@ export async function runBot(engine, controller, script) {
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const r1 = (v) => Math.round(v * 10) / 10;
 export const r2 = (v) => Math.round(v * 100) / 100;
+
+// ---------------------------------------------------------------- patient surgical field
+/**
+ * Builds the drill's work surface ON THE PATIENT: ART mannequin (true scale, x10) + drape with a window over the
+ * abdomen, and a 100 mm tissue field flush in that window. Falls back to a bare pad when ART is missing.
+ * Returns {pad, padTop, toLocal(x,z)->[lx,lz] (pad-local for incisionDecal), scale, dispose()}.
+ */
+export function buildPatientField(engine, art, group, { padW = 10 } = {}) {
+  const ART = 10; // ART 1 unit = 10 cm; levels use 1 unit = 1 cm
+  const hidden = [];
+  if (typeof art.makeSurgicalField === 'function') {
+    // LOOK's photoreal prepped-skin window with OR drapes around it (pad API compatible with incisionDecal)
+    try {
+      const f = art.makeSurgicalField({ w: 6, h: 4 });
+      const pad = f.mesh;
+      const w = pad.userData.width - 0.12;
+      const scale = padW / w;
+      pad.scale.setScalar(scale);
+      group.add(pad);
+      return { pad, padTop: pad.userData.surfaceY * scale, toLocal: (x, z) => [x / scale, z / scale], scale, dispose() {} };
+    } catch (e) { console.warn('[levels] makeSurgicalField failed', e); }
+  }
+  // the CORE room's own table would cut through the patient: hide its meshes (keep its lights)
+  if (engine.room && engine.room.group && typeof art.makeDummy === 'function') {
+    engine.room.group.traverse((o) => { if (o.isMesh && o.visible) { o.visible = false; hidden.push(o); } });
+  }
+  let skinY = 0;
+  const dummy = fromArt(art, 'makeDummy');
+  if (dummy) {
+    const d = dummy.mesh;
+    d.scale.setScalar(ART);
+    const ab = d.userData.abdomen || new THREE.Vector3(-0.5, 1.8, 0);
+    d.position.set(-ab.x * ART, -ab.y * ART, -ab.z * ART); // abdomen skin centre -> world origin
+    group.add(d);
+  }
+  // tissue field
+  let pad = null, padTop, toLocal, scale = 1;
+  const p = fromArt(art, 'makeTissuePad', { drape: false });
+  if (p && p.mesh.userData && p.mesh.userData.width) {
+    pad = p.mesh;
+    scale = padW / pad.userData.width;
+    pad.scale.setScalar(scale);
+    pad.position.y = skinY;
+    group.add(pad);
+    padTop = skinY + pad.userData.surfaceY * scale;
+    toLocal = (x, z) => [x / scale, z / scale];
+  } else {
+    pad = new THREE.Mesh(new THREE.BoxGeometry(padW, 0.6, padW * 0.66), new THREE.MeshStandardMaterial({ color: 0xe2b4a8, roughness: 0.6 }));
+    pad.position.y = skinY + 0.3;
+    group.add(pad);
+    padTop = skinY + 0.6;
+    toLocal = (x, z) => [x, z];
+  }
+  // drape with a window slightly smaller than the field, so the drape edge overlaps it
+  if (dummy) {
+    const padD = pad.userData && pad.userData.depth ? pad.userData.depth * scale : padW * 0.66;
+    const dr = fromArt(art, 'makeDrapeWithWindow', 6, 5, (padW - 0.8) / ART, (padD - 0.8) / ART);
+    if (dr) {
+      dr.mesh.scale.setScalar(ART);
+      dr.mesh.position.set(0, padTop - 0.12 * ART + 0.35, 0); // drape rim sits just above the field surface
+      if (dr.prep) dr.prep.visible = false;
+      if (dr.cavity) dr.cavity.visible = false;
+      group.add(dr.mesh);
+    }
+  }
+  return {
+    pad, padTop, toLocal, scale,
+    dispose() { for (const o of hidden) o.visible = true; },
+  };
+}

@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import {
   MM, fromArt, setCamera, addLightsIfNeeded, disposeGroup, makeDot, makeRing, makeReporter, steadyOf,
-  gradeDrill, runBot, clamp, r1, r2,
+  buildPatientField, gradeDrill, runBot, clamp, r1, r2,
 } from './_common.js';
 
 const ID = 'suture';
@@ -32,24 +32,12 @@ export default {
     group.name = 'level-suture';
     scene.add(group);
     addLightsIfNeeded(scene, group);
-    setCamera(engine, [0, 6.2, 7.6], [0, 0, 0.1]);
+    setCamera(engine, [0, 10.4, 8.6], [0, 0, 0.3]);
 
-    // ---------- pad + wound ----------
-    let pad = fromArt(art, 'makeTissuePad', { drape: true });
-    let padTop, toLocal = (x, z) => [x / ART_SCALE, z / ART_SCALE];
-    let decal = null;
-    if (pad) {
-      pad = pad.mesh;
-      pad.scale.setScalar(ART_SCALE);
-      group.add(pad);
-      padTop = pad.userData.surfaceY * ART_SCALE;
-      decal = fromArt(art, 'incisionDecal', pad);
-    } else {
-      pad = new THREE.Mesh(new THREE.BoxGeometry(10, 0.6, 6.6), new THREE.MeshStandardMaterial({ color: 0xe2b4a8, roughness: 0.6 }));
-      pad.position.y = 0.3;
-      group.add(pad);
-      padTop = 0.6;
-    }
+    // ---------- surgical field on the patient + wound ----------
+    const field = buildPatientField(engine, art, group, { padW: 10 });
+    const { pad, padTop, toLocal } = field;
+    const decal = pad.userData && pad.userData.surfaceY !== undefined ? fromArt(art, 'incisionDecal', pad) : null;
     engine.setWorkPlane(padTop);
     if (decal) {
       for (let i = 0; i <= 120; i++) {
@@ -307,6 +295,7 @@ export default {
       metrics,
       dispose() {
         if (decal && decal.dispose) decal.dispose();
+        field.dispose();
         disposeGroup(group);
       },
       async autoplay() {

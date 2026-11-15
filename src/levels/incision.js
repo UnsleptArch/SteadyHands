@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import {
   MM, fromArt, setCamera, addLightsIfNeeded, disposeGroup, makeDot, makeRing, polyline, closestOnPolyline,
-  Ribbon, makeReporter, steadyOf, gradeDrill, runBot, clamp, r1, r2,
+  Ribbon, buildPatientField, makeReporter, steadyOf, gradeDrill, runBot, clamp, r1, r2,
 } from './_common.js';
 
 const ID = 'incision';
@@ -37,24 +37,11 @@ export default {
     group.name = 'level-incision';
     scene.add(group);
     addLightsIfNeeded(scene, group);
-    setCamera(engine, [0, 12.5, 9.2], [0, 0, 0.6]);
+    setCamera(engine, [0, 10.4, 8.6], [0, 0, 0.3]);
 
-    // ---------- pad ----------
-    let pad = fromArt(art, 'makeTissuePad', { drape: true });
-    let padTop, toLocal;
-    if (pad) {
-      pad = pad.mesh;
-      pad.scale.setScalar(ART_SCALE);
-      group.add(pad);
-      padTop = pad.userData.surfaceY * ART_SCALE;
-      toLocal = (x, z) => [x / ART_SCALE, z / ART_SCALE];
-    } else {
-      pad = new THREE.Mesh(new THREE.BoxGeometry(10, 0.6, 6.6), new THREE.MeshStandardMaterial({ color: 0xe2b4a8, roughness: 0.6 }));
-      pad.position.y = 0.3;
-      group.add(pad);
-      padTop = 0.6;
-      toLocal = (x, z) => [x, z];
-    }
+    // ---------- surgical field on the patient ----------
+    const field = buildPatientField(engine, art, group, { padW: 10 });
+    const { pad, padTop, toLocal } = field;
     engine.setWorkPlane(padTop);
 
     // ---------- marked line + cut groove ----------
@@ -241,7 +228,7 @@ export default {
 
         // ---------- visuals ----------
         const k = Math.min(1, dt * 12);
-        const yTarget = st.cutting ? padTop - Math.min(st.depth, 7) * MM * 0.6 : padTop + (st.done ? 1.2 : 0.25);
+        const yTarget = st.cutting ? padTop - Math.min(st.depth, 7) * MM * 0.6 : padTop + (st.done ? 0.45 : 0.25);
         toolMesh.position.x = tip.x;
         toolMesh.position.z = tip.z;
         toolMesh.position.y += (yTarget - toolMesh.position.y) * k;
@@ -267,6 +254,7 @@ export default {
       metrics,
       dispose() {
         if (decal && decal.dispose) decal.dispose();
+        field.dispose();
         disposeGroup(group);
       },
       async autoplay() {
