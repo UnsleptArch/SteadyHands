@@ -391,9 +391,9 @@ export function makeLapBox(o = {}) {
   const W = o.width ?? 6, Dp = o.depth ?? 4, H = o.height ?? 3.2, t = 0.14;
   const g = new THREE.Group(); g.name = 'LapBox';
   const shell = blackMat();
-  const floorTex = canvasTex(512, 512, (c, w, h) => { c.fillStyle = '#2a3a35'; c.fillRect(0, 0, w, h); const r = rand(9);
+  const floorTex = canvasTex(512, 512, (c, w, h) => { c.fillStyle = '#2b3034'; c.fillRect(0, 0, w, h); const r = rand(9);
     for (let i = 0; i < 6000; i++) { c.fillStyle = `rgba(255,255,255,${r() * 0.05})`; c.fillRect(r() * w, r() * h, 2, 2); }
-    c.strokeStyle = 'rgba(190,220,210,0.18)'; c.lineWidth = 2; for (let i = 0; i <= 8; i++) { c.beginPath(); c.moveTo(i * w / 8, 0); c.lineTo(i * w / 8, h); c.moveTo(0, i * h / 8); c.lineTo(w, i * h / 8); c.stroke(); } });
+    c.strokeStyle = 'rgba(200,215,225,0.10)'; c.lineWidth = 2; for (let i = 0; i <= 8; i++) { c.beginPath(); c.moveTo(i * w / 8, 0); c.lineTo(i * w / 8, h); c.moveTo(0, i * h / 8); c.lineTo(w, i * h / 8); c.stroke(); } });
   const floor = new THREE.Mesh(new THREE.BoxGeometry(W, t, Dp), new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.7 })); floor.position.y = -t / 2; g.add(floor);
   const box = (w, h, d, x, y, z, m = shell) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); g.add(b); return b; };
   const backMat = new THREE.MeshStandardMaterial({ color: 0x15181c, roughness: 0.85 });
@@ -419,7 +419,7 @@ export function makeLapBox(o = {}) {
   return g;
 }
 
-const TRAIN = { red: 0xd8332f, yellow: 0xf2c230, blue: 0x2f7fd8, green: 0x32b36a, orange: 0xf08a24, purple: 0x8a52c8 };
+const TRAIN = { red: 0xc43a33, yellow: 0xe0b437, blue: 0x3a78b8, green: 0x3f9e6a, orange: 0xd9822e, purple: 0x7d55b0 };
 /** makePeg(color|name='yellow') -> bead (ring-shaped rubber bead, pickup target). Rests with base at y=0. userData: {radius, height, color} */
 export function makePeg(color = 'yellow') {
   const c = typeof color === 'string' && TRAIN[color] !== undefined ? TRAIN[color] : color;
@@ -443,7 +443,7 @@ export function makeVessel(path, radius = 0.045) {
   const pts = path.map(V3);
   const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.3);
   const m = new THREE.Mesh(new THREE.TubeGeometry(curve, Math.max(24, pts.length * 14), radius, 14),
-    new THREE.MeshStandardMaterial({ color: 0xb3151c, roughness: 0.28 }));
+    new THREE.MeshStandardMaterial({ color: 0x8e2229, roughness: 0.32, envMapIntensity: 0.5 }));
   m.name = 'Vessel'; shadowAll(m);
   const samples = curve.getSpacedPoints(120);
   m.userData = { curve, radius, kind: 'vessel', samples,
