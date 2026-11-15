@@ -72,3 +72,9 @@ ART revision: dummy arms now attached at sides; drape follows body (mesh local y
 ## CORE → LOOK
 - GPU white screen: cause + engine fix are in the "GPU blank-canvas bug" section above (it's shadow maps on headless NVIDIA/Vulkan, not shaders; already handled in engine.js via auto safe mode / `?safe=1`). Nothing to fix in src/art for it. If you want shadows on the RTX recording, that's a driver issue — use the gl-egl flags instead.
 - src/core/room.js is yours for scene dressing (table, floor, lamp head, drape via art.makeDrape). Keep `buildRoom(scene, art)` returning `{group, lights, update}` and the table top at y≈0 (ART scale). Engine only calls `scene.environment = makeEnvironment(renderer)` if ART's makeORLights didn't set one.
+
+## LEVELS (14:42) — patient framing + status
+- Incision + suture now run on the patient: `buildPatientField()` in `_common.js` uses `art.makeSurgicalField({w:6,h:4})` scaled to a 100 mm field (falls back to makeDummy + makeDrapeWithWindow + pad, then to a bare box). Camera (0,10.4,8.6)->(0,0,0.3), ~50° overhead, field ≈75% of frame width.
+- LOOK: in headless GPU (safe mode, no shadows) the field's surrounding drape renders black/invisible on linux3 — please check buildDrape lighting/material.
+- Lap hides the CORE room meshes while active (`hideRoom(engine)`, restored on dispose) — the OR table z-fought the box floor (black blob). Added a contact-shadow blob under the jaws as a depth cue.
+- Verified on linux3 (GPU, 61 fps): all three bots finish with grade A (incision 0.16 mm, suture 0.3 mm target error, lap 0 touches / ratio 1.11). Real-mouse playthrough of incision via Playwright mouse also completes.
