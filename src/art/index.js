@@ -394,8 +394,8 @@ export function makeVessel(path, radius = 0.045) {
 const flat = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 0.8, metalness: 0.02, ...extra });
 const skin = () => mats.skin ||= flat(0xcfc4b3);
 
-/** makeDummy() -> Group: OR table + supine CPR-style mannequin. Head at -X, feet at +X, table top at y=0, body lies on y>0.
- *  userData: {abdomen: Vector3 (centre of abdomen at skin top), skinY, torsoWidth(z), torsoLength(x), rightArm: forearm anchor Vector3} */
+/** makeDummy() -> Group: OR table + supine CPR-style mannequin, arms at sides attached at the shoulders. Head at -X, feet at +X, table pad top at y=0.2.
+ *  userData: {abdomen: Vector3 (abdomen centre at skin top), skinY, torsoHalfWidth, rightForearm} */
 export function makeDummy() {
   const g = new THREE.Group(); g.name = 'Dummy';
   const table = new THREE.Mesh(new THREE.BoxGeometry(22, 0.3, 7), new THREE.MeshPhysicalMaterial({ color: 0x9aa3ab, metalness: 0.9, roughness: 0.35 }));
@@ -403,38 +403,62 @@ export function makeDummy() {
   const pad = new THREE.Mesh(new THREE.BoxGeometry(21, 0.2, 6.4), flat(0x2c4a5a)); pad.position.y = 0.1; g.add(pad);
   for (const x of [-8, 8]) { const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 6, 8), flat(0x70787f)); leg.position.set(x, -3.3, 0); g.add(leg); }
   const base = new THREE.Mesh(new THREE.BoxGeometry(18, 0.3, 3), flat(0x4a5056)); base.position.y = -6.4; g.add(base);
-  const body = new THREE.Group(); body.position.y = 0.2; g.add(body);
-  const seg = (geo, x, y, z, mat = skin()) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); body.add(m); return m; };
-  const torso = new THREE.CylinderGeometry(1.55, 1.35, 6, 8, 1); torso.rotateZ(Math.PI / 2); torso.scale(1, 0.55, 1.2);
-  seg(torso, -1.0, 0.95, 0).scale.set(1, 1, 1);
-  const chest = new THREE.SphereGeometry(1.7, 8, 6); seg(chest, -3.4, 0.95, 0).scale.set(0.7, 0.62, 1.15);
-  const hips = new THREE.SphereGeometry(1.45, 8, 6); seg(hips, 2.2, 0.85, 0).scale.set(0.9, 0.62, 1.2);
-  seg(new THREE.CylinderGeometry(0.5, 0.6, 0.8, 8), -5.6, 0.9, 0).rotation.z = Math.PI / 2; // neck
-  const head = seg(new THREE.IcosahedronGeometry(1.05, 1), -6.8, 1.0, 0); head.scale.set(1.15, 1, 0.95);
-  seg(new THREE.ConeGeometry(0.16, 0.35, 4), -7.85, 1.0, 0, flat(0xbfb3a1)).rotation.z = Math.PI / 2; // nose
+  const add = (geo, x, y, z, mat = skin()) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); g.add(m); return m; };
+  const alongX = (geo) => { geo.rotateZ(Math.PI / 2); return geo; };
+  // torso: elliptical low-poly cylinder, half-width 1.5 (z), half-height 0.8 (y); top at y=1.8
+  add(alongX(new THREE.CylinderGeometry(1, 1, 6, 8)), -1, 0.9, 0).scale.set(1, 0.7, 1.5);
+  const chest = add(new THREE.SphereGeometry(1, 8, 6), -3.9, 0.9, 0); chest.scale.set(0.9, 0.7, 1.5);
+  const hips = add(new THREE.SphereGeometry(1, 8, 6), 2.1, 0.9, 0); hips.scale.set(0.9, 0.7, 1.4);
+  // short neck + small round head, face on top (supine)
+  add(alongX(new THREE.CylinderGeometry(0.4, 0.45, 0.7, 8)), -5.0, 0.8, 0);
+  add(new THREE.IcosahedronGeometry(0.85, 1), -5.95, 1.05, 0);
+  const dark = flat(0x2b2f36);
+  for (const sz of [-1, 1]) add(new THREE.SphereGeometry(0.09, 6, 4), -6.1, 1.86, sz * 0.3, dark);
+  add(new THREE.ConeGeometry(0.12, 0.28, 4), -5.9, 1.98, 0, flat(0xbfb3a1));
+  add(new THREE.BoxGeometry(0.06, 0.04, 0.4), -5.55, 1.86, 0, dark);
   for (const sz of [-1, 1]) {
-    const arm = new THREE.CylinderGeometry(0.42, 0.34, 4.4, 7); arm.rotateZ(Math.PI / 2); seg(arm, -1.2, 0.5, sz * 2.45);
-    const leg = new THREE.CylinderGeometry(0.75, 0.5, 6.5, 7); leg.rotateZ(Math.PI / 2); seg(leg, 6.2, 0.55, sz * 0.8);
-    seg(new THREE.SphereGeometry(0.4, 6, 5), 1.15, 0.5, sz * 2.45, skin());
+    add(new THREE.SphereGeometry(0.5, 7, 5), -3.7, 1.0, sz * 1.8);                                   // shoulder joint
+    add(alongX(new THREE.CylinderGeometry(0.4, 0.34, 3.4, 7)), -2.0, 0.7, sz * 1.95);                  // arm at the side, resting on pad
+    add(alongX(new THREE.CylinderGeometry(0.33, 0.27, 2.6, 7)), 0.9, 0.6, sz * 1.95);                  // forearm
+    add(new THREE.BoxGeometry(0.9, 0.2, 0.55), 2.5, 0.43, sz * 1.95);                                   // hand
+    add(alongX(new THREE.CylinderGeometry(0.62, 0.45, 6.6, 7)), 5.5, 0.82, sz * 0.8);                  // leg
   }
-  const skinY = 0.2 + 0.95 * 1 + 1.35 * 0.55;
   g.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
-  g.userData = { abdomen: new THREE.Vector3(-0.5, skinY, 0), skinY, torsoWidth: 3.6, torsoLength: 6, rightForearm: new THREE.Vector3(-1.2, 0.7, 2.45), kind: 'dummy' };
+  const skinY = 1.8; // drape level (torso top is at 1.6, leaving room for the cavity)
+  g.userData = { abdomen: new THREE.Vector3(-0.5, skinY, 0), skinY, torsoHalfWidth: 1.5, rightForearm: new THREE.Vector3(0.9, 0.6, 1.95), kind: 'dummy' };
   return g;
 }
 
-/** makeDrapeWithWindow(w=6,h=5, winW=2.8, winH=2.2) -> {mesh, windowCenter (Vector3 local, at y=0), windowSize}. Lies in XZ plane, centred at origin;
- *  place it at dummy.userData.skinY + 0.03 above the abdomen (window centre = mesh centre). */
+/** makeDrapeWithWindow(w=6,h=5, winW=2.8, winH=2.2) -> {mesh, windowCenter, windowSize, prep, cavity, cavityY}.
+ *  Drape follows the body contour (droops over the sides). Mesh local y=0 is skin level: set mesh.position to dummy.userData.abdomen.
+ *  Window shows a shallow dark-rimmed cavity (floor at local y=cavityY, organs rest there); `prep` is a tan skin-prep patch covering it (visible by default;
+ *  hide it when the incision opens the cavity). */
 export function makeDrapeWithWindow(w = 6, h = 5, winW = 2.8, winH = 2.2) {
-  const s = new THREE.Shape(); s.moveTo(-w / 2, -h / 2); s.lineTo(w / 2, -h / 2); s.lineTo(w / 2, h / 2); s.lineTo(-w / 2, h / 2); s.closePath();
-  const hole = new THREE.Path(); hole.moveTo(-winW / 2, -winH / 2); hole.lineTo(-winW / 2, winH / 2); hole.lineTo(winW / 2, winH / 2); hole.lineTo(winW / 2, -winH / 2); hole.closePath(); s.holes.push(hole);
-  const geo = new THREE.ShapeGeometry(s); geo.rotateX(-Math.PI / 2);
+  const nx = 48, nz = 40, pos = [], idx = [], rim = 0.12;
+  const prof = (z, x) => { const az = Math.abs(z), ax = Math.abs(x);
+    let y = az < 1.5 ? rim : az < 2.3 ? rim - 0.77 * ((az - 1.5) / 0.8) ** 1.5 : -0.65 - (az - 2.3) * 1.2;
+    if (ax > 2.2) y -= (ax - 2.2) * 0.8; return y; };
+  for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) { const x = -w / 2 + w * i / nx, z = -h / 2 + h * j / nz; pos.push(x, prof(z, x), z); }
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+    const cx = -w / 2 + w * (i + 0.5) / nx, cz = -h / 2 + h * (j + 0.5) / nz;
+    if (Math.abs(cx) < winW / 2 && Math.abs(cz) < winH / 2) continue; // window
+    const a = j * (nx + 1) + i, b = a + 1, c = a + nx + 1, d = c + 1; idx.push(a, c, b, b, c, d);
+  }
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setIndex(idx); geo.computeVertexNormals();
   const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0x2f8f74, flatShading: true, roughness: 0.9, side: THREE.DoubleSide }));
-  mesh.receiveShadow = true; mesh.name = 'DrapeWindow';
-  // betadine-style skin prep ring seen through the window
-  const prep = new THREE.Mesh(new THREE.PlaneGeometry(winW + 0.2, winH + 0.2), new THREE.MeshBasicMaterial({ color: 0xd9a35a, transparent: true, opacity: 0.35, depthWrite: false }));
-  prep.rotation.x = -Math.PI / 2; prep.position.y = -0.005; mesh.add(prep); mesh.userData.prep = prep; // hide prep when the incision opens the cavity
-  return { mesh, prep, windowCenter: new THREE.Vector3(0, 0, 0), windowSize: { w: winW, h: winH } };
+  mesh.receiveShadow = true; mesh.castShadow = true; mesh.name = 'DrapeWindow';
+  // cavity: dark-rimmed shallow recess
+  const cavityY = -0.06, cavity = new THREE.Group(); cavity.name = 'cavity';
+  const tex = canvasTex(256, 256, (c, W, H) => { const gr = c.createRadialGradient(W / 2, H / 2, W * 0.15, W / 2, H / 2, W * 0.75); gr.addColorStop(0, '#d79a8a'); gr.addColorStop(0.7, '#a86a62'); gr.addColorStop(1, '#4a2a2c'); c.fillStyle = gr; c.fillRect(0, 0, W, H); });
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(winW, winH), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.9 })); floor.rotation.x = -Math.PI / 2; floor.position.y = cavityY; floor.receiveShadow = true; cavity.add(floor);
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0x5a3335, flatShading: true, roughness: 1 }), wh = rim - cavityY;
+  for (const [sx, sz, len, ry] of [[0, -1, winW, 0], [0, 1, winW, 0], [-1, 0, winH, Math.PI / 2], [1, 0, winH, Math.PI / 2]]) {
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(len, wh, 0.05), wallMat); wall.rotation.y = ry;
+    wall.position.set(sx * winW / 2, cavityY + wh / 2, sz * winH / 2); cavity.add(wall); }
+  mesh.add(cavity);
+  const prep = new THREE.Mesh(new THREE.PlaneGeometry(winW, winH), new THREE.MeshStandardMaterial({ color: 0xd9b88a, flatShading: true, roughness: 0.8 }));
+  prep.rotation.x = -Math.PI / 2; prep.position.y = rim - 0.01; mesh.add(prep); mesh.userData.prep = prep;
+  return { mesh, prep, cavity, cavityY, windowCenter: new THREE.Vector3(0, 0, 0), windowSize: { w: winW, h: winH } };
 }
 
 function tubeAlong(pts, r, mat, seg = 6) { return new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(V3)), pts.length * 6, r, seg), mat); }
@@ -445,18 +469,20 @@ export function makeOrgan(kind = 'appendix') {
   let anchor = new THREE.Vector3(), radius = 0.2, extra = {};
   if (kind === 'appendix') {
     const m = flat(0xe39a86);
-    const pts = [[-0.9, 0.1, 0.5], [-0.5, 0.15, 0.1], [-0.1, 0.12, 0.45], [0.35, 0.15, 0.2], [0.7, 0.12, 0.5]];
-    g.add(tubeAlong(pts.map(([x, y, z]) => ({ x, y, z })), 0.11, m, 8));
-    const tip = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 6), m); tip.position.set(0.7, 0.12, 0.5); g.add(tip);
-    const cecum = new THREE.Mesh(new THREE.SphereGeometry(0.5, 8, 6), flat(0xd9b27a)); cecum.position.set(-1.1, 0.25, 0.5); cecum.scale.set(1, 0.7, 1); g.add(cecum);
-    const meso = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.03, 0.35), flat(0xf0d3a8)); meso.position.set(-0.2, 0.06, 0.2); g.add(meso);
-    anchor.set(0.2, 0.15, 0.3); radius = 0.12; extra.base = new THREE.Vector3(-0.8, 0.12, 0.45);
+    const pts = [{ x: -0.55, y: 0.14, z: 0.3 }, { x: -0.2, y: 0.17, z: 0.05 }, { x: 0.25, y: 0.16, z: 0.2 }, { x: 0.6, y: 0.15, z: -0.05 }];
+    g.add(tubeAlong(pts, 0.15, m, 8));
+    const tip = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), m); tip.position.set(0.6, 0.15, -0.05); g.add(tip);
+    const cecum = new THREE.Mesh(new THREE.SphereGeometry(0.5, 8, 6), flat(0xd9b27a)); cecum.position.set(-0.95, 0.25, 0.4); cecum.scale.set(1, 0.7, 1); g.add(cecum);
+    const meso = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.03, 0.3), flat(0xf0d3a8)); meso.position.set(0, 0.04, 0.12); g.add(meso);
+    anchor.set(0.2, 0.17, 0.15); radius = 0.15; extra.base = new THREE.Vector3(-0.55, 0.14, 0.3); g.scale.setScalar(0.75);
   } else if (kind === 'colon') {
     const m = flat(0xd9a78f);
-    const pts = []; for (let i = 0; i <= 24; i++) { const a = i / 24; pts.push({ x: -1.6 + 3.2 * a, y: 0.2, z: 0.9 * Math.sin(a * Math.PI * 3) }); }
-    const t = tubeAlong(pts, 0.28, m, 8); g.add(t);
-    for (let i = 1; i < 24; i += 2) { const b = new THREE.Mesh(new THREE.TorusGeometry(0.29, 0.04, 5, 8), flat(0xc48d75)); b.position.copy(pts[i]); b.rotation.y = Math.PI / 2 - 0.4 * Math.cos((i / 24) * Math.PI * 3); g.add(b); }
-    anchor.set(0, 0.2, 0); radius = 0.3;
+    const loop = [[-1.5, 1.1], [-1.5, 0.2], [-1.4, -0.7], [-0.7, -0.95], [0.7, -0.95], [1.4, -0.7], [1.5, 0.2], [1.5, 1.1]];
+    const pts = loop.map(([x, z]) => ({ x, y: 0.25, z }));
+    g.add(tubeAlong(pts, 0.26, m, 8));
+    for (let i = 0; i < 32; i++) { const t = i / 31, q = new THREE.CatmullRomCurve3(pts.map(V3)); const pt = q.getPoint(t), tg = q.getTangent(t);
+      const b = new THREE.Mesh(new THREE.TorusGeometry(0.27, 0.035, 5, 8), flat(0xc48d75)); b.position.copy(pt); b.lookAt(pt.clone().add(tg)); g.add(b); }
+    anchor.set(0, 0.25, -0.95); radius = 0.27; g.scale.setScalar(0.55);
   } else if (kind === 'gallbladder') {
     const m = flat(0x6fae5a, { roughness: 0.5 });
     const sac = new THREE.Mesh(new THREE.SphereGeometry(0.38, 8, 6), m); sac.scale.set(1.5, 0.8, 0.8); g.add(sac);
@@ -473,7 +499,7 @@ export function makeOrgan(kind = 'appendix') {
     extra.curve = new THREE.CatmullRomCurve3(pts.map(V3)); anchor.set(0.3, 0.1, 0.15); radius = 0.1;
   } else throw new Error('makeOrgan: unknown kind ' + kind);
   g.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
-  g.userData = { kind, anchor, radius, ...extra };
+  g.userData = { kind, anchor, radius, scale: g.scale.x, ...extra }; // anchor/curve are organ-local (group is scaled): use organ.localToWorld
   return g;
 }
 

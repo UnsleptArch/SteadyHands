@@ -21,12 +21,12 @@ if(q==='a'){
  const sc=A.makeScalpel();sc.position.set(-1.2,0,0);s.add(sc);const nd=A.makeNeedleDriver();nd.position.set(0.3,0,0);nd.setOpen(.4);s.add(nd);const nn=A.makeCurvedNeedle();nn.position.set(1.4,0,0);nn.setThread([{x:1,y:0,z:.7}]);s.add(nn);const gr=A.makeGrasper();gr.position.set(2.2,0,-0.3);s.add(gr);
  cam.position.set(0.3,2.4,5.5);cam.lookAt(0.3,0,1);
 }else if(q==='d'){
- const d=A.makeDummy();s.add(d);const dr=A.makeDrapeWithWindow();dr.mesh.position.copy(d.userData.abdomen);dr.mesh.position.y+=0.03;s.add(dr.mesh);
- const ap=A.makeOrgan('appendix');ap.position.copy(d.userData.abdomen);ap.position.y+=0.1;dr.prep.visible=false;s.add(ap);
- const co=A.makeOrgan('colon');co.position.set(-0.5,d.userData.skinY+0.1,0.0);s.add(co);
+
+ const d=A.makeDummy();s.add(d);const dr=A.makeDrapeWithWindow();dr.mesh.position.copy(d.userData.abdomen);s.add(dr.mesh);dr.prep.visible=false;
+ const ap=A.makeOrgan('appendix');ap.position.set(-0.5-0.9,d.userData.skinY+dr.cavityY+0.02,0.5);dr.mesh.parent.add(ap);
+ const co=A.makeOrgan('colon');co.position.set(-0.5,d.userData.skinY+dr.cavityY+0.02,0);s.add(co);
  const vm=A.makeVitalsMonitor();vm.mesh.position.set(-3,-6.4,-5.5);s.add(vm.mesh);vm.setVitals({hr:88});
  const fa=A.makeForearm();fa.position.set(4,0,6);s.add(fa);
- [['liver',-6,0],['gallbladder',-6,2.5],['artery',-6,-2.5]].forEach(([k,x,z])=>{const o=A.makeOrgan(k);o.position.set(x,6,z);s.add(o);});
  cam.position.set(...(new URLSearchParams(location.search).get("m")?[-3,-3,-1]:[0,9,7]));cam.lookAt(...(new URLSearchParams(location.search).get("m")?[-3,-3,-5.5]:[-0.5,1,1]));
 }else{
  const b=A.makeLapBox();s.add(b);
