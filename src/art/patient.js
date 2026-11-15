@@ -82,11 +82,11 @@ function drapeY(x, z, win, noise) {
   y = Math.max(-3.6, y - 2.6 * ss(11.0, 11.5, x) - 7 * Math.max(0, x - 11.35));
   // anaesthesia screen: sheet runs up from the chest, over the bar, and drops a little behind it
   const bx = win.bx, by = win.by + 0.06;
-  if (x < bx + 1.25) {
-    const up = Math.pow(ss(bx + 1.25, bx + 0.02, x), 0.55);
+  if (x < bx + 0.9) {
+    const up = Math.pow(ss(bx + 0.9, bx + 0.02, x), 0.6);
     y = y * (1 - up) + by * up;
     if (x < bx) y = by - 1.6 * ss(bx, bx - 0.4, x);
-    y += 0.12 * Math.max(0, Math.min(1, (bx + 1.25 - x) / 1.25)) * (r1 - 0.5) * (1 - ss(3.3, 4.1, az)); // vertical folds
+    y += 0.12 * Math.max(0, Math.min(1, (bx + 0.9 - x) / 0.9)) * (r1 - 0.5) * (1 - ss(3.3, 4.1, az)); // vertical folds
   }
   return y;
 }
@@ -182,7 +182,7 @@ export function makePatient() {
   const cap = new THREE.Mesh(new THREE.SphereGeometry(1.04, 36, 24, 0, Math.PI * 2, 0, Math.PI * 0.55), std('cap', 0x5f8fb6, { roughness: 0.95 }));
   cap.scale.set(1.0, 0.94, 0.8); cap.rotation.z = Math.PI / 2 + 0.35; cap.position.x = -0.12; head.add(cap);
   // endotracheal tube + tape (anaesthetised)
-  const ett = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(0.62, 0.82, 0.08), new THREE.Vector3(0.7, 1.3, 0.12), new THREE.Vector3(0.2, 1.75, 0.3), new THREE.Vector3(-0.8, 1.9, 0.6)]), 24, 0.04, 8),
+  const ett = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(0.62, 0.82, 0.08), new THREE.Vector3(0.68, 1.12, 0.1), new THREE.Vector3(0.3, 1.3, 0.22), new THREE.Vector3(-1.3, 1.15, 0.5)]), 24, 0.04, 8),
     std('ett', 0xe8eef2, { roughness: 0.25, transparent: true, opacity: 0.85 })); head.add(ett);
   const ring = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.18, 12, 28), std('gel', 0x2b6c86, { roughness: 0.35 })); ring.rotation.x = Math.PI / 2; ring.position.set(-6.6, 0.38, 0); g.add(ring);
   const neck = limb(new THREE.Vector3(-5.9, 0.95, 0), new THREE.Vector3(-4.8, 0.95, 0), 0.5, 0.55, skinMat()); neck.scale.set(1, 1, 1); g.add(neck);
@@ -213,7 +213,16 @@ export function makePatient() {
     for (const a of arms) {
       // arm wrapped in a sheet up to the wrist, sheet tucked over the board edges
       const sleeve = limb(a.sh.clone().add(new THREE.Vector3(0, 0.08, -a.s * 0.15)), a.wr.clone().add(new THREE.Vector3(0, 0.02, -a.s * 0.15)), 0.62, 0.48, mat);
-      sleeve.scale.x = 1.12; sleeve.name = 'armDrape'; g.add(sleeve);
+      { // soft wrinkles along the wrapped sheet
+        const pa = sleeve.geometry.attributes.position;
+        for (let i = 0; i < pa.count; i++) {
+          const x = pa.getX(i), y = pa.getY(i), z = pa.getZ(i), ang = Math.atan2(z, x);
+          const w = 1 + 0.045 * Math.sin(y * 3.1 + 2.0 * Math.sin(ang * 2)) + 0.03 * Math.sin(ang * 5 + y * 1.3) + 0.04 * (noise(y * 0.8 + 5, ang * 1.5 + 9) - 0.5);
+          pa.setX(i, x * w); pa.setZ(i, z * w);
+        }
+        sleeve.geometry.computeVertexNormals();
+      }
+      sleeve.scale.set(1.12, 1, 0.86); sleeve.name = 'armDrape'; g.add(sleeve);
       const tuck = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.12, 4.6), mat); tuck.position.set(ARM_X, 0.24, a.s * 5.15); g.add(tuck);
       const cuff = new THREE.Mesh(new THREE.TorusGeometry(0.44, 0.07, 8, 24), mat); cuff.position.copy(a.wr).add(new THREE.Vector3(0, 0.02, -a.s * 0.18)); cuff.rotation.y = 0; g.add(cuff);
     }
