@@ -221,7 +221,7 @@ export default {
             if (decal && decal.flash) { const [lx, lz] = toLocal(tip.x, tip.z); decal.flash(lx, lz); }
           } else if (devMm < 1.5) st.offArmed = true;
           // too deep
-          if (st.depth > DEPTH_BAND[1] && st.deepArmed) { st.deep++; st.deepArmed = false; }
+          if (st.depth > DEPTH_BAND[1] && st.deepArmed && st.strokeT > 0.6) { st.deep++; st.deepArmed = false; }
           else if (st.depth < DEPTH_BAND[1] - 0.5) st.deepArmed = true;
           // pauses: blade parked in tissue
           if (st.speed < 1.5) {
