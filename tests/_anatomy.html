@@ -1,0 +1,36 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Anatomy sets</title>
+<style>body{margin:0;background:#1a1f24}canvas{display:block}#l{position:fixed;top:10px;left:12px;color:#cfd8dc;font:15px system-ui}</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script></head>
+<body><div id="l"></div><script type="module">
+// ?set=abdomen | field (abdomen inside the draped patient window) | thorax | neck ; &omentum=0 &hl=appendix &infl=0.5 &comp=0.5
+import * as THREE from 'three'; import * as A from '../src/art/anatomy.js'; import * as ART from '../src/art/index.js';
+const q = new URLSearchParams(location.search), which = q.get('set') || 'abdomen';
+const r = new THREE.WebGLRenderer({ antialias: true }); r.setSize(innerWidth, innerHeight); r.shadowMap.enabled = true; r.toneMapping = THREE.ACESFilmicToneMapping; r.outputColorSpace = THREE.SRGBColorSpace; document.body.appendChild(r.domElement);
+const s = new THREE.Scene(); s.background = new THREE.Color(0x1a1f24);
+const c = new THREE.PerspectiveCamera(35, innerWidth / innerHeight, 0.01, 200);
+s.add(new THREE.HemisphereLight(0xfff6ee, 0x302826, 1.3)); const d = new THREE.DirectionalLight(0xffffff, 2.4); d.position.set(1, 6, 2); d.castShadow = true; d.shadow.mapSize.set(2048, 2048); d.shadow.camera.left = d.shadow.camera.bottom = -4; d.shadow.camera.right = d.shadow.camera.top = 4; s.add(d);
+try { const pm = new THREE.PMREMGenerator(r); const { RoomEnvironment } = await import('three/addons/environments/RoomEnvironment.js'); s.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; } catch (e) {}
+let upd = () => {}; const label = document.getElementById('l');
+window.__err = null;
+try {
+  if (which === 'abdomen') {
+    const set = A.makeAbdomenSet({ omentum: q.get('omentum') !== '0', highlight: q.get('hl') || null, flatten: 1 }); s.add(set.group); upd = set.update;
+    c.position.set(1.2, 5.2, 4.8); c.lookAt(-0.2, -0.6, 0); label.textContent = 'makeAbdomenSet (flatten:1, real proportions) — head left, patient right toward camera';
+  } else if (which === 'field') {
+    const dummy = ART.makeDummy(); s.add(dummy); const ab = dummy.userData.abdomen.clone();
+    const dr = ART.makeDrapeWithWindow(6, 5, 2.8, 2.2); dr.mesh.position.copy(ab); s.add(dr.mesh); dr.prep.visible = false; dr.cavity.children[0].visible = false;
+    const set = A.makeAbdomenSet({ omentum: q.get('omentum') !== '0', highlight: q.get('hl') || null, center: q.get('center') || 'navel' }); set.group.position.copy(ab); s.add(set.group); upd = set.update;
+    if (dummy.userData.attach) try { dummy.userData.attach(s); } catch (e) {}
+    c.position.set(ab.x + 0.6, ab.y + 4.2, ab.z + 3.4); c.lookAt(ab.x, ab.y, ab.z); label.textContent = 'abdomen set in the drape window (center=' + (q.get('center') || 'navel') + ')';
+  } else if (which === 'thorax') {
+    const set = A.makeThoraxSet({ side: q.get('side') || 'left', inflation: +(q.get('infl') ?? 0.3) }); s.add(set.group); upd = set.update;
+    set.parts.chestWall && (set.parts.chestWall.visible = q.get('wall') === '1');
+    c.position.set(-0.4, 3.6, 3.4); c.lookAt(0, -0.5, 0); label.textContent = 'makeThoraxSet inflation=' + (q.get('infl') ?? 0.3);
+  } else if (which === 'neck') {
+    const set = A.makeNeckSet({}); s.add(set.group); set.setCompression(+(q.get('comp') ?? 0)); upd = set.update;
+    c.position.set(0.4, 1.4, 1.9); c.lookAt(0, -0.12, 0); label.textContent = 'makeNeckSet compression=' + (q.get('comp') ?? 0);
+  }
+} catch (e) { window.__err = String(e && e.stack || e); label.textContent = 'ERROR ' + e; console.error(e); }
+let t0 = performance.now(); function loop() { const t = (performance.now() - t0) / 1000; try { upd(t); } catch (e) {} r.render(s, c); requestAnimationFrame(loop); } loop();
+window.__ready = true;
+</script></body></html>
