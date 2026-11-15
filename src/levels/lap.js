@@ -137,7 +137,7 @@ export default {
     const lastTip = new THREE.Vector3(0, WORK_Y, 0);
     const st = {
       started: false, done: false, time: 0, path: 0, held: null, placed: 0, drops: 0, missed: 0, touches: 0,
-      touchArmed: true, wasDown: false, tipY: WORK_Y, flashT: 0, msg: '', msgT: 0,
+      touchArmed: false, wasDown: false, tipY: WORK_Y, flashT: 0, msg: '', msgT: 0,
     };
     // ideal path: the planned route visiting each bead then its target post
     let idealLen = 0;

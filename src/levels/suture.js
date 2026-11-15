@@ -32,7 +32,7 @@ export default {
     group.name = 'level-suture';
     scene.add(group);
     addLightsIfNeeded(scene, group);
-    setCamera(engine, [0, 7.4, 10.5], [0, 0, 0.2]);
+    setCamera(engine, [0, 6.2, 7.6], [0, 0, 0.1]);
 
     // ---------- pad + wound ----------
     let pad = fromArt(art, 'makeTissuePad', { drape: true });
@@ -79,8 +79,8 @@ export default {
     });
 
     // X-ray guide arc for the current bite (drawn through the pad)
-    const guideGeo = new THREE.BufferGeometry().setFromPoints(new Array(N_SAMP + 1).fill(0).map(() => new THREE.Vector3()));
-    const guide = new THREE.Line(guideGeo, new THREE.LineDashedMaterial({ color: 0x7fb6ff, dashSize: 0.06, gapSize: 0.05, transparent: true, opacity: 0.85, depthTest: false }));
+    const guideMat = new THREE.MeshBasicMaterial({ color: 0x8fc4ff, transparent: true, opacity: 0.55, depthTest: false, depthWrite: false });
+    const guide = new THREE.Mesh(new THREE.BufferGeometry(), guideMat);
     guide.renderOrder = 10;
     guide.frustumCulled = false;
     group.add(guide);
@@ -99,7 +99,7 @@ export default {
     const drv = fromArt(art, 'makeNeedleDriver');
     if (drv) {
       const d = drv.mesh;
-      d.scale.setScalar(2.6);
+      d.scale.setScalar(1.8);
       const a = 0.35;
       d.position.set(R * Math.cos(a), R * Math.sin(a), 0);
       if (d.setOpen) d.setOpen(0);
@@ -136,8 +136,8 @@ export default {
         v3.copy(samples[i]).project(camera);
         sNdc[i].set(v3.x, v3.y);
       }
-      guideGeo.setFromPoints(samples);
-      guide.computeLineDistances();
+      guide.geometry.dispose();
+      guide.geometry = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(samples.map((p) => p.clone())), 48, 0.014, 6);
       // mm per NDC unit near this bite
       const a = v3.copy(entry).project(camera).clone();
       const b = v3.copy(entry).addScaledVector(SIDE, 1).project(camera);
