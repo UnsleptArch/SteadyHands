@@ -54,10 +54,17 @@ export default {
 
     // skin halves (split along the incision line, z = C.z)
     const prepMat = call(art, 'prepSkinMaterial', WIN_W, WIN_H / 2) || (artPrep && artPrep.material) || new THREE.MeshStandardMaterial({ color: 0xd9b88a, flatShading: true, roughness: 0.8 });
+    const fatMat = new THREE.MeshStandardMaterial({ color: 0xe9c983, roughness: 0.55 });
+    const dermisMat = new THREE.MeshStandardMaterial({ color: 0xd9a08a, roughness: 0.6 });
     const halves = [-1, 1].map((s) => {
       const geo = new THREE.PlaneGeometry(WIN_W, WIN_H / 2); geo.rotateX(-Math.PI / 2); geo.translate(0, 0, -s * WIN_H / 4); // edge at local z=0, extends outward
       const m = new THREE.Mesh(geo, prepMat); m.receiveShadow = true;
       const pivot = new THREE.Group(); pivot.position.set(C.x, prepY, C.z + s * WIN_H / 2); // pivot at outer edge
+      // cut edge: thin dermis + yellow subcutaneous fat band so the wound edge has depth (no blood)
+      const edge = new THREE.Mesh(new THREE.PlaneGeometry(WIN_W, 0.14), fatMat);
+      edge.position.set(0, -0.07, -s * WIN_H / 2); if (s > 0) edge.rotation.y = Math.PI; pivot.add(edge);
+      const dermis = new THREE.Mesh(new THREE.PlaneGeometry(WIN_W, 0.025), dermisMat);
+      dermis.position.set(0, -0.013, -s * WIN_H / 2 + -s * 0.001); if (s > 0) dermis.rotation.y = Math.PI; pivot.add(dermis);
       pivot.add(m); group.add(pivot); pivot.userData.s = s;
       return pivot;
     });

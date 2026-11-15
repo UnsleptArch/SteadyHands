@@ -307,7 +307,7 @@ export default {
     const fulc = () => V(tgtL.x, PLANE, tgtL.z);
     const tipFromHand = (h) => { const c = fulc(); return V(clamp(c.x - (h.x - c.x) * K, -1.1, 1.1), PLANE, clamp(c.z - (h.z - c.z) * K, -1.0, 0.95)); };
     const handFor = (tp) => { const c = fulc(); return W(V(c.x - (tp.x - c.x) / K, PLANE, c.z - (tp.z - c.z) / K)); };
-    const settle = async (bot) => { for (let n = 0; n < 80 && camI >= 0 && camL.distanceTo(CAMS[camI].pos) + tgtL.distanceTo(CAMS[camI].tgt) > 0.004; n++) await bot.wait(0.05); };
+    const settle = async (bot) => { if (Math.abs(bot.pos.y - (CAV.y + PLANE)) > 0.5) await bot.start(W(fulc())); for (let n = 0; n < 80 && camI >= 0 && camL.distanceTo(CAMS[camI].pos) + tgtL.distanceTo(CAMS[camI].tgt) > 0.004; n++) await bot.wait(0.05); };
     const dXZ = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
     const curveDist = (curve, pp, a = 0, b = 1) => { let best = Infinity, bt = 0; for (let i = 0; i <= 40; i++) { const t = a + (b - a) * i / 40; const d = dXZ(planeHit(curve.getPoint(t)), pp); if (d < best) { best = d; bt = t; } } return { d: best, t: bt }; };
 

@@ -112,7 +112,7 @@ export default {
     stain.rotation.x = -Math.PI / 2; stain.position.set(C.x, skinY + 0.002, C.z); stain.renderOrder = 1; group.add(stain);
     function applyPrep() {
       const t0 = performance.now();
-      const tick = () => { if (disposed) return; const u = Math.min(1, (performance.now() - t0) / 900); rawMat.opacity = 1 - u; stain.material.opacity = 0.85 * u; if (u < 1) requestAnimationFrame(tick); else raw.visible = false; };
+      const tick = () => { if (disposed) return; const u = Math.min(1, (performance.now() - t0) / 900); rawMat.opacity = 1 - u; stain.material.opacity = 0.4 * u; if (u < 1) requestAnimationFrame(tick); else raw.visible = false; };
       requestAnimationFrame(tick);
     }
     // skin-marker landmarks: SCM heads + clavicle (the triangle whose apex we scan)
@@ -316,7 +316,7 @@ export default {
           else b = 0.7;
           // transverse process + acoustic shadow (deep, medial)
           const tp = 33 + 0.05 * (z + 13) * (z + 13);
-          if (z > -20 && z < -6) { if (dep > tp && dep < tp + 1.3) b = 2.4; else if (dep > tp + 1.3) b = 0.12; }
+          if (z > -20 && z < -6) { if (dep > tp && dep < tp + 1.1) b = 1.9; else if (dep > tp + 1.1) b = 0.35; }
           // vessels: artery thick bright wall, vein thin wall, posterior acoustic enhancement
           const qa = ((z - ART.z) / aR) ** 2 + ((dep - aD) / aR) ** 2;
           const qv = ((z - VEIN.z) / vRx) ** 2 + ((dep - vD) / vRy) ** 2;
@@ -449,7 +449,7 @@ export default {
                 if (t0 > 12 && !warnedT) { warnedT = true; S.warn('Keep the bundle brisk'); }
                 return false;
               }
-              band.material.opacity = 0.2 + 0.14 * Math.sin(performance.now() / 260);
+              band.material.opacity = 0.38 + 0.2 * Math.sin(performance.now() / 260);
               if (ev.pressed && Math.hypot(ev.p.x - probe.position.x, ev.p.z - probe.position.z) < 0.32) { held = true; grab.set(probe.position.x - ev.p.x, 0, probe.position.z - ev.p.z); }
               else if (ev.pressed) { S.m.missedActions++; S.setInstr('Press on the probe and drag it onto the teal band'); }
               if (held) {
@@ -501,7 +501,7 @@ export default {
             if (!compressed) { S.warn('Compress first: hold the mouse button on the field'); return; }
             const w = (x - US_W / 2) / PX, d = y / PX;
             probeFrame(); const z = (probe.position.z - C.z) / MM + w * U.z;
-            usClick = [x, y];
+            usClick = [x, y]; setTimeout(() => { usClick = null; }, 700);
             if (qVein(z, d) < 1.4) {
               done = true; labelsOn = true;
               S.precision(Math.hypot(z - VEIN.z, d - VEIN.d) * 0.5);

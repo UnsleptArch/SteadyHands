@@ -276,13 +276,14 @@ export default {
 
     const site = { x: SITE_X, z: icsZ(5, SITE_X), k: 5 };
     const hole = V(SITE_X, Y0, ribZ(6, SITE_X));
-    let siteMark = null;
+    let siteMark = null, injGroup = null;
     const incGroup = new THREE.Group(); group.add(incGroup);
 
     // ---------------- palpation highlights: rib + muscle-edge segments light up near the fingertips
     const palp = new THREE.Group(); group.add(palp);
     const ribSegs = [], edgeSegs = [];
     const felt = { ribs: new Set(), edges: new Set() };
+    const ribLabels = [];
     const segMat = (c) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0, depthWrite: false });
     const ribGeo = new THREE.PlaneGeometry(0.095, 0.022), edgeGeo = new THREE.PlaneGeometry(0.045, 0.014);
     for (let k = 2; k <= 9; k++) {
@@ -322,7 +323,7 @@ export default {
           s.felt = 1;
           if (!felt.ribs.has(s.k)) {
             felt.ribs.add(s.k);
-            const lab = labelSprite(`rib ${s.k}`); lab.position.set(p.x + 0.16, surf(p.x, s.z) + 0.05, s.z); group.add(lab);
+            const lab = labelSprite(`rib ${s.k}`); lab.position.set(p.x + 0.16, surf(p.x, s.z) + 0.05, s.z); group.add(lab); ribLabels.push(lab);
           }
         }
         s.m.material.opacity = Math.max(live * muffled * 0.75, s.felt * 0.16);
@@ -460,7 +461,10 @@ export default {
         start(S) {
           for (const s of ribSegs) s.m.material.opacity = s.k === site.k || s.k === site.k + 1 ? 0.24 : 0.08;
           for (const s of edgeSegs) s.m.material.opacity = 0.3;
-          return holdTargets(S, { targets: [V(site.x, Y0, site.z)], y: surf(site.x, site.z), radius: 0.07, holdT: 2.0, label: 'Lidocaine in, site numb' });
+          const n0 = group.children.length;
+          const m = holdTargets(S, { targets: [V(site.x, Y0, site.z)], y: surf(site.x, site.z), radius: 0.07, holdT: 2.0, label: 'Lidocaine in, site numb' });
+          injGroup = group.children[n0] || null;
+          return m;
         },
       },
       {
@@ -469,6 +473,8 @@ export default {
         cam: camAt(SITE_X, icsZ(5, SITE_X) + 0.1, 1.2, 0.75),
         start(S) {
           palp.visible = false;
+          if (injGroup) injGroup.visible = false;
+          for (const l of ribLabels) l.visible = l.position.z > site.z - 0.2 && l.position.z < site.z + 0.3;
           const k6 = site.k + 1, cx = site.x;
           const gy = surf(cx, ribZ(k6, cx)) + 0.004;
           const guide = new Ribbon(40, gy, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.7, depthWrite: false, side: THREE.DoubleSide }));
@@ -508,8 +514,8 @@ export default {
                 S.award(ideal ? 150 : 100, ideal ? 'Clean 2.5 cm incision' : 'Incision made');
                 hole.x = (a.x + ev.p.x) / 2; hole.z = ribZ(k6, hole.x); hole.y = surf(hole.x, hole.z);
                 guide.mesh.visible = false;
-                const wound = new THREE.Mesh(new THREE.CircleGeometry(1, 24), new THREE.MeshStandardMaterial({ color: 0x5b2c2c, roughness: 0.5, transparent: true, opacity: 0.9, depthWrite: false }));
-                wound.rotation.set(-Math.PI / 2, 0, -Math.atan(SLOPE)); wound.scale.set(Lcm * 0.05, 0.011, 1);
+                const wound = new THREE.Mesh(new THREE.CircleGeometry(1, 24), new THREE.MeshStandardMaterial({ color: 0x4a2224, roughness: 0.45, transparent: true, opacity: 0.92, depthWrite: false }));
+                wound.rotation.set(-Math.PI / 2, 0, -Math.atan(SLOPE)); wound.scale.set(Lcm * 0.05, 0.007, 1);
                 wound.position.set(hole.x, hole.y + 0.006, hole.z); wound.renderOrder = 4; incGroup.add(wound);
                 cut.mesh.visible = false;
                 done = true;
@@ -536,6 +542,8 @@ export default {
           const green = [zTop6 - 0.05, zTop6 + 0.012], red = [zBot5 - 0.02, zBot5 + 0.04];
           const d = { zc: (ribZ(k5, x) + ribZ(k6, x)) / 2 + 0.03, x, k: k5, stage: 0, tipZ: hole.z, skinZ: hole.z, green, red, showRed: false, bad: false, resist: 0 };
           pst.dis = d; panel.showXsec(true);
+          if (siteMark) siteMark.visible = false;
+          for (const l of ribLabels) l.visible = false;
           const bandMesh = (z0, z1, color, op) => {
             const m = new THREE.Mesh(new THREE.PlaneGeometry(0.34, z1 - z0), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: op, depthWrite: false }));
             m.rotation.set(-Math.PI / 2, 0, -Math.atan(SLOPE)); m.position.set(x, surf(x, (z0 + z1) / 2) + 0.008, (z0 + z1) / 2); m.renderOrder = 4; group.add(m); return m;
@@ -735,7 +743,7 @@ export default {
       {
         title: 'Connect, secure & confirm', tool: null, plane: Y0 + 0.01,
         instr: 'Drag the tube connector onto the underwater-seal drain (kept below the chest).',
-        cam: { pos: [SITE_X + 0.45, Y0 + 2.1, 2.75], target: [SITE_X + 0.38, Y0 - 0.25, 0.85] },
+        cam: { pos: [SITE_X + 0.5, Y0 + 2.9, 3.0], target: [SITE_X + 0.42, Y0 - 0.45, 1.25] },
         start(S) {
           drain.visible = true;
           const subs = [];
