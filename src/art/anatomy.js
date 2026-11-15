@@ -250,13 +250,13 @@ export function makeThoraxSet(opts = {}) {
     const c = crv(pts);
     // flattened bone (wider than deep), costal cartilage at the anterior end
     const g = tubeVar(c, (u) => 0.062 * capR(u, 0.01, 0.01), { segs: 80, rad: 16 });
-    const p = g.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i); const cy = curveDepth(x); p.setY(i, cy + (p.getY(i) - cy) * 0.42); } g.computeVertexNormals();
+    const p = g.attributes.position; for (let i = 0; i < p.count; i++) { const x = p.getX(i); const cy = curveDepth(x); p.setY(i, cy + (p.getY(i) - cy) * 0.6); } g.computeVertexNormals();
     const rib = new THREE.Mesh(g, x0Material(bone, cart)); rib.name = 'rib' + k; rib.userData.k = k; group.add(rib); parts.ribs.push(rib);
   }
   // intercostal muscles: striated sheet just under the ribs
   {
     const g = new THREE.PlaneGeometry(3.0, 3.0, 60, 60); g.rotateX(-Math.PI / 2); const p = g.attributes.position;
-    for (let i = 0; i < p.count; i++) p.setY(i, curveDepth(p.getX(i)) - 0.012);
+    for (let i = 0; i < p.count; i++) p.setY(i, curveDepth(p.getX(i)) - 0.03);
     g.computeVertexNormals();
     const tex = stripeTex('#8c3b34', '#a24a40', 18);
     parts.intercostals = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: 0xffffff, map: tex, roughness: 0.5, normalMap: td().normal || null, normalScale: new THREE.Vector2(0.3, 0.3) }));
@@ -271,7 +271,7 @@ export function makeThoraxSet(opts = {}) {
   }
   // lung: spongy pink lobe whose surface sits against the pleura when expanded, shrinks medially/apically when collapsed
   {
-    const g = blob((v) => { v.x *= 1.25; v.y *= 0.7; v.z *= 1.55; }, 64, 40);
+    const g = blob((v) => { v.x *= 1.55; v.y *= 0.6; v.z *= 1.5; v.y += 0.12 * (v.x * v.x + v.z * v.z * 0.4) * (v.y > 0 ? -1 : 0); }, 64, 40);
     const lung = new THREE.Mesh(g, wet(0xe3a3a0, { roughness: 0.55, ns: 0.8 })); lung.name = 'lung';
     // fissure line
     const fis = new THREE.Mesh(tubeVar(crv([[-1.1, 0, 0.6], [-0.2, 0, 0.1], [0.9, 0, -0.5]]), () => 0.012, { segs: 40, rad: 6 }), wet(0xb0706e, { noMap: true })); lung.add(fis);
@@ -280,10 +280,10 @@ export function makeThoraxSet(opts = {}) {
   // heart hint (deep, anterior-medial) + diaphragm dome (caudal, +Z)
   {
     const h = new THREE.Mesh(blob((v) => { v.multiplyScalar(0.55); v.y *= 0.75; v.x *= 1.1; v.z += 0.1 * v.x; }), wet(0x8e3a32, { roughness: 0.35 }));
-    h.position.set(-1.5, -1.05, 0.55); h.name = 'heart'; group.add(h); parts.heart = h;
+    h.position.set(-1.45, -1.1, 0.45); h.name = 'heart'; group.add(h); parts.heart = h;
     if (o.side !== 'left') h.material.opacity = 0.0, h.visible = false; // heart only shows through on the left
-    const d = new THREE.Mesh(blob((v) => { v.x *= 1.7; v.z *= 1.4; v.y = v.y > 0 ? v.y * 0.5 : v.y * 0.05; }), wet(0xa0453c, { roughness: 0.4, ns: 0.6 }));
-    d.position.set(0, -1.15, ribZ(10, 0) + 0.25); d.name = 'diaphragm'; group.add(d); parts.diaphragm = d;
+    const d = new THREE.Mesh(blob((v) => { v.x *= 1.6; v.z *= 0.9; v.y = v.y > 0 ? v.y * 0.45 : v.y * 0.05; }), wet(0xa0453c, { roughness: 0.4, ns: 0.6 }));
+    d.position.set(0, -1.25, ribZ(10, 0) + 0.75); d.name = 'diaphragm'; group.add(d); parts.diaphragm = d;
   }
   if (o.chestWall) {
     const g = new THREE.PlaneGeometry(3.0, 3.0, 40, 40); g.rotateX(-Math.PI / 2); const p = g.attributes.position;

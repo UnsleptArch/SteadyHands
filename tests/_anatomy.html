@@ -25,7 +25,7 @@ try {
   } else if (which === 'thorax') {
     const set = A.makeThoraxSet({ side: q.get('side') || 'left', inflation: +(q.get('infl') ?? 0.3) }); s.add(set.group); upd = set.update;
     set.parts.chestWall && (set.parts.chestWall.visible = q.get('wall') === '1');
-    c.position.set(-0.4, 3.6, 3.4); c.lookAt(0, -0.5, 0); label.textContent = 'makeThoraxSet inflation=' + (q.get('infl') ?? 0.3);
+    c.position.set(-0.4, 3.6, 3.4); if (q.get('cut') === '1') { set.parts.intercostals.visible = false; set.parts.pleura.visible = false; c.position.set(-0.6, 3.4, 4.2); } c.lookAt(0, -0.6, 0); label.textContent = 'makeThoraxSet inflation=' + (q.get('infl') ?? 0.3);
   } else if (which === 'neck') {
     const set = A.makeNeckSet({}); s.add(set.group); set.setCompression(+(q.get('comp') ?? 0)); upd = set.update;
     c.position.set(0.4, 1.4, 1.9); c.lookAt(0, -0.12, 0); label.textContent = 'makeNeckSet compression=' + (q.get('comp') ?? 0);
