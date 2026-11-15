@@ -1,0 +1,42 @@
+{
+  "name": "OSATS-inspired rubric (Objective Structured Assessment of Technical Skills, Martin et al. 1997, adapted)",
+  "scale": {"min": 1, "max": 5, "note": "Anchors defined at 1, 3 and 5; 2 and 4 are between. Letter grade from the mean."},
+  "items": [
+    {"id": "tissue", "name": "Respect for tissue", "anchors": {"1": "Frequent or unnecessary force; repeated damage to tissue", "3": "Careful handling but occasional inadvertent damage", "5": "Consistently gentle; minimal or no damage"}},
+    {"id": "time_motion", "name": "Time and motion", "anchors": {"1": "Many unnecessary moves; very slow", "3": "Efficient most of the time, some wasted motion", "5": "Economy of movement and maximum efficiency"}},
+    {"id": "instrument", "name": "Instrument handling", "anchors": {"1": "Repeatedly makes tentative or awkward moves", "3": "Competent use but occasionally stiff or awkward", "5": "Fluid, confident moves with no awkwardness"}},
+    {"id": "flow", "name": "Flow of operation", "anchors": {"1": "Frequently stopped and unsure of the next move", "3": "Demonstrates some forward planning with reasonable progression", "5": "Obviously planned course; smooth, uninterrupted progress"}},
+    {"id": "precision", "name": "Precision", "anchors": {"1": "Large, repeated misses of the target", "3": "Usually on target, with some corrections", "5": "Consistently on target, no corrections needed"}}
+  ],
+  "grades": [
+    {"min": 4.5, "label": "A", "text": "Expert-like control"},
+    {"min": 3.5, "label": "B", "text": "Proficient"},
+    {"min": 2.5, "label": "C", "text": "Competent, keep practicing"},
+    {"min": 1.5, "label": "D", "text": "Developing"},
+    {"min": 0, "label": "E", "text": "Novice: slow down and try again"}
+  ],
+  "mapping": {
+    "_note": "Each rule: metric key, units, and thresholds. Score 5 if value <= t5, 4 if <= t4, 3 if <= t3, 2 if <= t2, else 1 (lower is better). Metric names are suggestions; LEVELS may rename and tell CONTENT via docs/NOTES.md.",
+    "incision": {
+      "tissue": {"metric": "depthVariability", "unit": "mm (std dev of cut depth)", "t5": 0.3, "t4": 0.5, "t3": 0.8, "t2": 1.2},
+      "time_motion": {"metric": "timeSec", "unit": "s", "t5": 20, "t4": 28, "t3": 40, "t2": 60},
+      "instrument": {"metric": "offLineEvents", "unit": "count of exits beyond 2 mm", "t5": 0, "t4": 1, "t3": 3, "t2": 5},
+      "flow": {"metric": "pauses", "unit": "count of stops > 1.5 s mid-cut", "t5": 0, "t4": 1, "t3": 2, "t2": 4},
+      "precision": {"metric": "meanDeviationMm", "unit": "mm", "t5": 0.8, "t4": 1.2, "t3": 2.0, "t2": 3.0}
+    },
+    "suture": {
+      "tissue": {"metric": "traumaEvents", "unit": "count of tears or yanks", "t5": 0, "t4": 1, "t3": 2, "t2": 4},
+      "time_motion": {"metric": "timeSec", "unit": "s", "t5": 40, "t4": 55, "t3": 80, "t2": 120},
+      "instrument": {"metric": "needleOffCurveMm", "unit": "mm mean drift off needle arc", "t5": 0.5, "t4": 1.0, "t3": 1.8, "t2": 3.0},
+      "flow": {"metric": "retries", "unit": "count of re-attempted bites", "t5": 0, "t4": 1, "t3": 2, "t2": 4},
+      "precision": {"metric": "meanTargetErrorMm", "unit": "mm from entry/exit target", "t5": 1.0, "t4": 1.5, "t3": 2.5, "t2": 4.0}
+    },
+    "lap": {
+      "tissue": {"metric": "vesselTouches", "unit": "count", "t5": 0, "t4": 1, "t3": 2, "t2": 4},
+      "time_motion": {"metric": "pathLengthRatio", "unit": "tip path / ideal path", "t5": 1.4, "t4": 1.8, "t3": 2.5, "t2": 3.5},
+      "instrument": {"metric": "drops", "unit": "count of dropped pegs", "t5": 0, "t4": 1, "t3": 2, "t2": 3},
+      "flow": {"metric": "timeSec", "unit": "s", "t5": 60, "t4": 80, "t3": 110, "t2": 160},
+      "precision": {"metric": "missedGrasps", "unit": "count of failed grasp attempts", "t5": 1, "t4": 2, "t3": 4, "t2": 6}
+    }
+  }
+}

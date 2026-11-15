@@ -1,0 +1,44 @@
+[
+  {
+    "id": "incision",
+    "title": "Drill 1: Precision Incision",
+    "skill": "Knife control and depth discipline",
+    "brief": "A clean incision is the first step of most operations, and a wandering or too-deep cut damages tissue that cannot be put back. Surgeons rehearse straight, even cuts on silicone pads long before they touch a patient.",
+    "objective": "Trace the marked line from the green start dot to the end dot with the scalpel, keeping the blade on the line and at an even depth.",
+    "controls": [
+      "Move the mouse to guide the scalpel over the pad",
+      "Hold the left mouse button to cut; release to lift the blade",
+      "Hold SHIFT for a steady breath: tremor drops, but your focus meter drains",
+      "P or ESC to pause"
+    ],
+    "scoring": "Graded on average deviation from the line in millimetres (smaller is better), how consistent your cutting depth stays, and total time. Wandering more than 2 mm off the line flashes a red highlight and counts as an error."
+  },
+  {
+    "id": "suture",
+    "title": "Drill 2: Suturing",
+    "skill": "Needle driving and tissue handling",
+    "brief": "Closing a wound means driving a curved needle through tissue at exactly the right entry and exit points, again and again. Poor needle handling tears tissue, so suturing is one of the first hands-on skills every surgical trainee must master.",
+    "objective": "Pass the curved needle through each glowing entry and exit target pair, in order, without tearing the tissue.",
+    "controls": [
+      "Move the mouse to position the needle driver",
+      "Hold the left mouse button and sweep along the needle's curve to drive it through the pad",
+      "Hold SHIFT for a steady breath: tremor drops, but your focus meter drains",
+      "P or ESC to pause"
+    ],
+    "scoring": "Graded on how close each bite lands to its entry and exit targets (mm), tissue trauma from dragging or yanking the needle off its curve, and total time."
+  },
+  {
+    "id": "lap",
+    "title": "Drill 3: Laparoscopic Transfer",
+    "skill": "Minimally invasive instrument control",
+    "brief": "In laparoscopy, instruments pass through small ports and the surgeon watches a 2D screen. The fulcrum effect reverses your hand motion at the tip, so this skill must be trained before operating. It is the idea behind peg transfer, a core task in the FLS program.",
+    "objective": "Use the grasper to move all 3 pegs from the left posts to the right posts without touching the red vessels.",
+    "controls": [
+      "Move the mouse: the tip moves the opposite way (fulcrum effect), pivoting at the port",
+      "Hold the left mouse button to close the jaws and grasp; release to let go",
+      "Hold SHIFT for a steady breath: tremor drops, but your focus meter drains",
+      "P or ESC to pause"
+    ],
+    "scoring": "Graded on errors (vessel touches and dropped pegs), total time, and economy of motion (how short your tip's path is). Fewer errors, less time and a tighter path all score higher."
+  }
+]
