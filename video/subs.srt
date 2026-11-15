@@ -1,0 +1,331 @@
+1
+00:00:00,017 --> 00:00:01,394
+Before a surgeon operates on a real person,
+
+2
+00:00:01,413 --> 00:00:02,928
+they need hundreds of hours of hands-on practice.
+
+3
+00:00:02,928 --> 00:00:05,064
+That practice happens in simulation labs that
+
+4
+00:00:05,064 --> 00:00:06,982
+cost hundreds of thousands of dollars and most
+
+5
+00:00:06,982 --> 00:00:07,992
+students never get near one.
+
+6
+00:00:07,992 --> 00:00:09,590
+We wanted to know how much of that training
+
+7
+00:00:09,590 --> 00:00:10,549
+could reach anyone with a laptop.
+
+8
+00:00:10,549 --> 00:00:11,879
+So we started with questions.
+
+9
+00:00:11,879 --> 00:00:14,366
+How are surgeons actually trained and tested?
+
+10
+00:00:14,453 --> 00:00:17,061
+We found FLS, the keyhole-skills exam surgeons
+
+11
+00:00:17,061 --> 00:00:19,029
+must pass to become board-certified, and OSATS,
+
+12
+00:00:19,029 --> 00:00:20,712
+which grades five things.
+
+13
+00:00:20,712 --> 00:00:22,899
+Respect for tissue, time and motion, instrument
+
+14
+00:00:22,899 --> 00:00:23,993
+handling, flow and precision.
+
+15
+00:00:23,993 --> 00:00:26,214
+Then we asked what makes these skills hard.
+
+16
+00:00:26,214 --> 00:00:28,182
+The answer was tremor and the fulcrum effect.
+
+17
+00:00:28,182 --> 00:00:31,211
+In keyhole surgery, the tool pivots at the skin.
+
+18
+00:00:31,211 --> 00:00:33,698
+So your hand goes left and the tip goes right.
+
+19
+00:00:33,735 --> 00:00:35,179
+Those became our core mechanics.
+
+20
+00:00:35,299 --> 00:00:37,722
+We compared the alternatives, cadavers, box
+
+21
+00:00:37,722 --> 00:00:39,489
+trainers, and VR simulators, and every one of
+
+22
+00:00:39,489 --> 00:00:40,717
+them needs money or hardware.
+
+23
+00:00:40,717 --> 00:00:41,758
+A browser doesn't.
+
+24
+00:00:41,945 --> 00:00:43,754
+Steady Hands has three drills and five real
+
+25
+00:00:43,754 --> 00:00:44,477
+procedures.
+
+26
+00:00:44,477 --> 00:00:46,597
+The drills isolate one skill each, cutting at
+
+27
+00:00:46,597 --> 00:00:50,299
+the right depth, placing sutures, and peg transfer.
+
+28
+00:00:50,299 --> 00:00:52,772
+The actual FLS task, the procedures combine
+
+29
+00:00:52,772 --> 00:00:54,825
+them in appendectomy.
+
+30
+00:00:54,825 --> 00:00:57,988
+You find the appendix without nicking its artery.
+
+31
+00:00:57,988 --> 00:01:00,747
+While the patient's heart reacts to every careless
+
+32
+00:01:00,747 --> 00:01:03,473
+move, a central line is guided by live ultrasound.
+
+33
+00:01:03,473 --> 00:01:05,927
+The vein squashes under the probe, the artery
+
+34
+00:01:06,064 --> 00:01:06,216
+pulses.
+
+35
+00:01:06,216 --> 00:01:08,958
+In a gallbladder removal, you must prove the
+
+36
+00:01:08,958 --> 00:01:11,902
+critical view of safety before clipping.
+
+37
+00:01:11,902 --> 00:01:14,578
+And if you pick the bile duct, the game stops
+
+38
+00:01:14,578 --> 00:01:16,799
+you the way a senior surgeon would.
+
+39
+00:01:16,799 --> 00:01:20,147
+Every run ends with an OSATS-style report and
+
+40
+00:01:20,147 --> 00:01:23,949
+a sourced fact, and a trivia mode teaches the
+
+41
+00:01:23,949 --> 00:01:24,185
+why.
+
+42
+00:01:24,185 --> 00:01:26,675
+That means combining surgery, anatomy, physiology,
+
+43
+00:01:26,675 --> 00:01:28,660
+ultrasound physics, and medical education research,
+
+44
+00:01:28,660 --> 00:01:30,309
+then turning them into game design.
+
+45
+00:01:30,309 --> 00:01:34,196
+It's built in three.js, and every organ, instrument,
+
+46
+00:01:34,196 --> 00:01:36,518
+and drape is generated in code.
+
+47
+00:01:36,518 --> 00:01:38,587
+No downloaded models and no gore.
+
+48
+00:01:38,587 --> 00:01:41,330
+So it loads in seconds and even on a school
+
+49
+00:01:41,330 --> 00:01:41,464
+Chromebook.
+
+50
+00:01:41,464 --> 00:01:45,401
+Ten times more, players, costs nothing because
+
+51
+00:01:45,401 --> 00:01:47,034
+it's just static files.
+
+52
+00:01:47,034 --> 00:01:50,180
+Ten times bigger means VR, haptic controllers,
+
+53
+00:01:50,180 --> 00:01:52,569
+and instructor dashboard for a whole class.
+
+54
+00:01:52,569 --> 00:01:53,107
+Plenty broke.
+
+55
+00:01:53,107 --> 00:01:56,523
+Our first project, a wildfire predictor, didn't
+
+56
+00:01:56,523 --> 00:01:59,787
+fit any track, so we pivoted mid-event.
+
+57
+00:01:59,787 --> 00:02:03,303
+Our first art looked cartoonish, so we rebuilt
+
+58
+00:02:03,303 --> 00:02:05,222
+it for grounded realism.
+
+59
+00:02:05,222 --> 00:02:07,880
+To test fairly, we built automatic first-time
+
+60
+00:02:07,880 --> 00:02:11,108
+players that moved a real mouse with shaky hands.
+
+61
+00:02:11,346 --> 00:02:14,358
+They found a drill that dropped to one frame
+
+62
+00:02:14,358 --> 00:02:17,639
+per second and a step that could soft-lock.
+
+63
+00:02:17,639 --> 00:02:21,592
+We fixed both and re-ran until every level could
+
+64
+00:02:21,592 --> 00:02:22,400
+be finished.
+
+65
+00:02:22,400 --> 00:02:23,763
+Then we showed it to Dr.
+
+66
+00:02:23,763 --> 00:02:26,034
+Enver Ozer, a head and neck surgeon and professor
+
+67
+00:02:26,034 --> 00:02:27,162
+at Ohio State.
+
+68
+00:02:27,162 --> 00:02:29,113
+He said that suturing and trivia are the most
+
+69
+00:02:29,113 --> 00:02:29,450
+valuable parts.
+
+70
+00:02:29,450 --> 00:02:31,570
+Because incisions are a skill he mostly acquired
+
+71
+00:02:31,570 --> 00:02:33,168
+from real experience, he suggested injections,
+
+72
+00:02:33,168 --> 00:02:35,658
+more types of suturing, and more procedures.
+
+73
+00:02:35,658 --> 00:02:37,086
+So that's our roadmap.
+
+74
+00:02:37,274 --> 00:02:39,394
+Injection training and new suturing techniques
+
+75
+00:02:39,394 --> 00:02:40,067
+come next.
+
+76
+00:02:40,067 --> 00:02:41,831
+Ahead of new incision drills.
+
+77
+00:02:42,035 --> 00:02:44,492
+Steady hands is for pre-med students, med school
+
+78
+00:02:44,492 --> 00:02:46,696
+applicants, and schools or hospitals without
+
+79
+00:02:46,696 --> 00:02:47,419
+a sim lab.
+
+80
+00:02:47,419 --> 00:02:50,529
+We'll test it with students and residents to
+
+81
+00:02:50,751 --> 00:02:52,736
+check that the scores really help separate beginners
+
+82
+00:02:52,736 --> 00:02:53,123
+from experts.
+
+83
+00:02:53,123 --> 00:02:55,579
+The same way the FLS exam was validated.
