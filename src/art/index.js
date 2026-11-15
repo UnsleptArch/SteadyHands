@@ -77,7 +77,7 @@ function drapeMat() {
   if (mats.drape) return mats.drape;
   const f = fabricDetail();
   return (mats.drape = new THREE.MeshStandardMaterial({ color: DRAPE_BLUE, map: f.albedo, normalMap: f.normal, normalScale: new THREE.Vector2(0.55, 0.55),
-    roughness: 0.93, metalness: 0, side: THREE.DoubleSide, envMapIntensity: 0.6 }));
+    roughness: 0.93, metalness: 0, envMapIntensity: 0.6 }));
 }
 const sstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const foldNoise = valueNoise(77, 64);
@@ -127,16 +127,23 @@ function skinCanvas(w, h, { prep = true, seed = 5, pxu = 170 } = {}) {
     const col = r() > 0.5 ? '232,186,160' : '196,140,118'; gr.addColorStop(0, `rgba(${col},0.18)`); gr.addColorStop(1, `rgba(${col},0)`);
     g.fillStyle = gr; g.fillRect(x - rad, y - rad, rad * 2, rad * 2);
   }
-  if (prep) { // Betadine: overlapping circular wipes, soft irregular border
-    const cx = W / 2, cy = H / 2;
-    for (let i = 0; i < 260; i++) {
-      const a = r() * Math.PI * 2, rr = Math.sqrt(r()) * 0.5, x = cx + Math.cos(a) * rr * W * 0.92, y = cy + Math.sin(a) * rr * H * 0.92;
-      const rad = (0.18 + r() * 0.35) * pxu * Math.max(1, Math.min(w, h) / 3), gr = g.createRadialGradient(x, y, 0, x, y, rad);
-      const tone = r() > 0.5 ? '168,86,34' : '140,66,26';
-      gr.addColorStop(0, `rgba(${tone},0.10)`); gr.addColorStop(0.7, `rgba(${tone},0.07)`); gr.addColorStop(1, `rgba(${tone},0)`);
-      g.fillStyle = gr; g.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+  if (prep) { // Betadine: even orange-brown tint, gentle wipe variation, soft irregular border
+    const mask = canvas(W, H), mg = mask.getContext('2d');
+    const rx = W * 0.47, ry = H * 0.47;
+    for (let i = 0; i < 90; i++) { // build an irregular soft-edged blob as the stain coverage
+      const a = r() * Math.PI * 2, rr = Math.sqrt(r()) * 0.82, x = W / 2 + Math.cos(a) * rr * rx, y = H / 2 + Math.sin(a) * rr * ry;
+      const rad = Math.min(W, H) * (0.22 + r() * 0.18), gr = mg.createRadialGradient(x, y, rad * 0.5, x, y, rad);
+      gr.addColorStop(0, 'rgba(0,0,0,0.9)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); mg.fillStyle = gr; mg.fillRect(x - rad, y - rad, rad * 2, rad * 2);
     }
-    g.globalCompositeOperation = 'multiply'; g.fillStyle = 'rgba(236,200,170,0.25)'; g.fillRect(0, 0, W, H); g.globalCompositeOperation = 'source-over';
+    const st = canvas(W, H), sg = st.getContext('2d');
+    sg.fillStyle = 'rgb(176,92,40)'; sg.fillRect(0, 0, W, H);
+    for (let i = 0; i < 140; i++) { // circular wipe marks, low contrast
+      const x = r() * W, y = r() * H, rad = Math.min(W, H) * (0.05 + r() * 0.14);
+      sg.strokeStyle = r() > 0.5 ? 'rgba(150,72,28,0.18)' : 'rgba(200,120,62,0.16)'; sg.lineWidth = rad * 0.35;
+      sg.beginPath(); sg.arc(x, y, rad, 0, Math.PI * 2); sg.stroke();
+    }
+    sg.globalCompositeOperation = 'destination-in'; sg.drawImage(mask, 0, 0);
+    g.globalAlpha = 0.5; g.drawImage(st, 0, 0); g.globalAlpha = 1;
   }
   return c;
 }
@@ -145,7 +152,7 @@ export function makeSkinMaterial(o = {}) {
   const w = o.w ?? 3, h = o.h ?? 2, d = skinDetail();
   const map = texFromCanvas(skinCanvas(w, h, o));
   const nm = d.normal.clone(); nm.needsUpdate = true; const rep = o.repeat ?? 1.4; nm.repeat.set(w * rep, h * rep);
-  return new THREE.MeshStandardMaterial({ map, normalMap: nm, normalScale: new THREE.Vector2(0.12, 0.12), roughness: 0.58, metalness: 0, envMapIntensity: 0.5 });
+  return new THREE.MeshStandardMaterial({ map, normalMap: nm, normalScale: new THREE.Vector2(0.05, 0.05), roughness: 0.55, metalness: 0, envMapIntensity: 0.5 });
 }
 const plainSkin = () => mats.plainSkin ||= new THREE.MeshStandardMaterial({ color: 0xd2a68e, roughness: 0.62, metalness: 0, envMapIntensity: 0.5 });
 
@@ -282,14 +289,17 @@ export function makeScalpel() {
   const bg = new THREE.ExtrudeGeometry(s, { depth: 0.012, bevelEnabled: true, bevelSize: 0.004, bevelThickness: 0.004, bevelSegments: 2 });
   bg.translate(0, 0, -0.006);
   const blade = new THREE.Mesh(bg, steel(0.2)); blade.rotation.y = Math.PI / 2; blade.position.z = 0; g.add(blade);
-  // slot + holder
-  const holder = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.16, 0.28), steel(0.3)); holder.position.set(0, 0.125, 0.72); g.add(holder);
-  const handle = latheAlongZ([[0.85, 0.05], [0.95, 0.075], [1.3, 0.1], [1.9, 0.11], [2.3, 0.08], [2.35, 0.0]], steel(0.3));
-  handle.scale.set(0.8, 1, 1); handle.position.y = 0.13; g.add(handle);
-  for (let i = 0; i < 12; i++) { // grip rings
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.108, 0.01, 8, 24), steel(0.35)); ring.scale.set(0.8, 1, 1);
-    ring.position.set(0, 0.13, 1.35 + i * 0.07); g.add(ring);
-  }
+  // No.3-style flat handle (same plane as the blade), knurled grip panel
+  const side = (shape, depth, mat, bev = 0.012) => { const geo = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: true, bevelSize: bev, bevelThickness: bev, bevelSegments: 3, curveSegments: 16 });
+    geo.rotateY(-Math.PI / 2); geo.translate(depth / 2, 0, 0); return new THREE.Mesh(geo, mat); };
+  const hp = new THREE.Shape(); // (z, y) profile
+  hp.moveTo(0.5, 0.085); hp.lineTo(0.86, 0.075); hp.quadraticCurveTo(0.95, 0.06, 1.05, 0.045); hp.lineTo(2.2, 0.03);
+  hp.quadraticCurveTo(2.36, 0.03, 2.36, 0.11); hp.quadraticCurveTo(2.36, 0.19, 2.2, 0.19); hp.lineTo(1.05, 0.2);
+  hp.quadraticCurveTo(0.95, 0.185, 0.86, 0.165); hp.lineTo(0.5, 0.155); hp.closePath();
+  g.add(side(hp, 0.045, steel(0.24)));
+  const kn = new THREE.Shape(); kn.moveTo(1.25, 0.06); kn.lineTo(1.95, 0.05); kn.quadraticCurveTo(2.02, 0.11, 1.95, 0.17); kn.lineTo(1.25, 0.175); kn.quadraticCurveTo(1.2, 0.118, 1.25, 0.06);
+  const knMat = mats.knurl ||= new THREE.MeshStandardMaterial({ color: 0x9aa1a8, metalness: 1, roughness: 0.62, normalMap: fabricDetail().normal, normalScale: new THREE.Vector2(0.8, 0.8) });
+  g.add(side(kn, 0.06, knMat, 0.006));
   shadowAll(g); g.userData = { tip: new THREE.Vector3(0, 0, 0), length: 2.35, kind: 'scalpel' };
   return g;
 }

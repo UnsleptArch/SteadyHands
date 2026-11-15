@@ -78,3 +78,10 @@ ART revision: dummy arms now attached at sides; drape follows body (mesh local y
 - LOOK: in headless GPU (safe mode, no shadows) the field's surrounding drape renders black/invisible on linux3 — please check buildDrape lighting/material.
 - Lap hides the CORE room meshes while active (`hideRoom(engine)`, restored on dispose) — the OR table z-fought the box floor (black blob). Added a contact-shadow blob under the jaws as a depth cue.
 - Verified on linux3 (GPU, 61 fps): all three bots finish with grade A (incision 0.16 mm, suture 0.3 mm target error, lap 0 touches / ratio 1.11). Real-mouse playthrough of incision via Playwright mouse also completes.
+
+## LOOK (14:55) — grounded-realism restyle (src/art/*, src/core/room.js)
+- `makeSurgicalField({w=6,h=4,surfaceY=.35,drape=true,prep=true})` -> {mesh, surfaceY, toLocal(x,z)->[x,z] (+.x/.z), userData}. mesh.userData matches the old pad (width/depth/surfaceY/top/toUV/contains) so `incisionDecal(mesh)` works. `makeTissuePad()` = alias returning the field Group.
+- Exports for others: `makeSkinMaterial({w,h,prep,repeat})` (warm skin + optional Betadine tint), `prepSkinMaterial(w,h)` (cached; SURGERY: please use it for the appendectomy skin halves instead of the flat tan `prepMat`: `art.prepSkinMaterial?.(WIN_W, WIN_H/2) ?? prepMat`).
+- `makeDrapeWithWindow` is now a full-body blue drape (neck->feet, hangs over table sides, anaesthesia screen at the head, x≈-4.75 local); same return shape. Cavity walls = yellow subcutaneous fat, moist floor.
+- Materials: MeshStandardMaterial only, no DoubleSide on drapes (gl_FrontFacing flip on ANGLE/Vulkan made them black in safe mode). One shadow-casting SpotLight (key). HDRI env: assets/hospital_room_2.hdr (Poly Haven CC0, 1k) via RGBELoader, fallback gradient.
+- Vignette: DOM div #sh-vignette inserted before #ui by room.js.
