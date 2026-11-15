@@ -53,7 +53,7 @@ export default {
     const C = V(abdomen.x, prepY, abdomen.z); // window centre at skin level
 
     // skin halves (split along the incision line, z = C.z)
-    const prepMat = (artPrep && artPrep.material) || new THREE.MeshStandardMaterial({ color: 0xd9b88a, flatShading: true, roughness: 0.8 });
+    const prepMat = call(art, 'prepSkinMaterial', WIN_W, WIN_H / 2) || (artPrep && artPrep.material) || new THREE.MeshStandardMaterial({ color: 0xd9b88a, flatShading: true, roughness: 0.8 });
     const halves = [-1, 1].map((s) => {
       const geo = new THREE.PlaneGeometry(WIN_W, WIN_H / 2); geo.rotateX(-Math.PI / 2); geo.translate(0, 0, -s * WIN_H / 4); // edge at local z=0, extends outward
       const m = new THREE.Mesh(geo, prepMat); m.receiveShadow = true;
