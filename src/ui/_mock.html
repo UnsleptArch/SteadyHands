@@ -6,6 +6,6 @@ import { createHUD } from './hud.js';
 const events = new EventTarget();
 const engine = { events, input:{steady:false}, loadLevel(id){ setTimeout(()=>{ events.dispatchEvent(new CustomEvent('level:start',{detail:{id}}));
   let p=0; const t=setInterval(()=>{ p+=.04; events.dispatchEvent(new CustomEvent('level:progress',{detail:{id,pct:p,hint:'Keep the blade steady along the line',accuracy:.9}}));
-  if(p>=1){clearInterval(t);events.dispatchEvent(new CustomEvent('level:score',{detail:{id,metrics:{deviation_mm:1.23,time:24.6,accuracy:.91,errors:2},grade:{accuracy:4,depth:3,time:5,economy:4}}}));}},300);},0);} };
+  if(p>=1){clearInterval(t);events.dispatchEvent(new CustomEvent('level:score',{detail:{id,metrics:{deviation_mm:1.23,time:24.6,accuracy:.91,errors:2},grade:{tissue:4,time_motion:3,instrument:5}}}));}},300);},0);} };
 window.hud = createHUD(document.getElementById('ui'), engine);
 </script></body></html>

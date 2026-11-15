@@ -26,7 +26,9 @@ const fmtTime = s => { s = Math.max(0, s); const m = Math.floor(s / 60); return 
 const letterFor = avg => avg >= 4.5 ? 'A' : avg >= 3.75 ? 'B' : avg >= 3 ? 'C' : avg >= 2 ? 'D' : 'F';
 const pretty = k => GRADE_LABELS[k] || String(k).replace(/([A-Z])/g, ' $1').replace(/[_-]/g, ' ').replace(/^./, c => c.toUpperCase());
 
-async function loadJSON(url, fb) { try { const r = await fetch(url); if (!r.ok) throw 0; return await r.json(); } catch { return fb; } }
+const CONTENT = new URL('../../content/', import.meta.url);
+const prettyM = k => String(k).replace(/_mm$/, ' (mm)').replace(/([A-Z])/g, ' $1').replace(/[_-]/g, ' ').replace(/^./, c => c.toUpperCase());
+async function loadJSON(url, fb) { try { const r = await fetch(new URL(url, CONTENT)); if (!r.ok) throw 0; return await r.json(); } catch { return fb; } }
 
 export function createHUD(root, engine) {
   const ev = engine.events;
@@ -36,7 +38,8 @@ export function createHUD(root, engine) {
   let resultShown = false;
 
   const meta = id => drills.find(d => d.id === id) || { id, title: id };
-  Promise.all([loadJSON('content/drills.json', null), loadJSON('content/facts.json', [])]).then(([d, f]) => {
+  Promise.all([loadJSON('drills.json', null), loadJSON('facts.json', []), loadJSON('osats.json', null)]).then(([d, f, o]) => {
+    if (o && Array.isArray(o.items)) o.items.forEach(i => { GRADE_LABELS[i.id] = i.name; });
     if (Array.isArray(d) && d.length) {
       drills = ORDER.map(id => ({ ...FALLBACK_DRILLS.find(x => x.id === id), ...(d.find(x => x.id === id) || {}) }));
       renderTitle(); renderHow();
@@ -75,7 +78,7 @@ export function createHUD(root, engine) {
     title.querySelector('[data-act=how]').onclick = () => show(how);
   }
   function renderHow() {
-    const c = ['Mouse / trackpad to move the instrument.', 'Hold SHIFT for a steady breath: tremor drops, but your focus meter drains.', 'Esc pauses.'];
+    const c = ['Mouse / trackpad to move the instrument.', 'Hold SHIFT for a steady breath: tremor drops, but your focus meter drains.', 'P or Esc pauses.'];
     how.innerHTML = `
       <div class="sh-panel wide">
         <div class="sh-panel-head"><h2>How to play</h2><button class="sh-btn ghost" data-act="back">Back</button></div>
@@ -110,7 +113,7 @@ export function createHUD(root, engine) {
         <div class="sh-prog"><div class="l"><span>Progress</span><span id="shPct">0%</span></div>
           <div class="sh-bar"><div id="shProg"></div></div></div>
       </div>
-      <div class="sh-esc"><kbd>Esc</kbd> pause</div>
+      <div class="sh-esc"><kbd>P</kbd> / <kbd>Esc</kbd> pause</div>
     </div>`;
   const $ = id => hud.querySelector('#' + id);
 
@@ -173,7 +176,7 @@ export function createHUD(root, engine) {
     const g = normGrade(grade, metrics), d = meta(id);
     const fl = facts.filter(f => f.drill === id), fact = fl.length ? fl[Math.floor(Math.random() * fl.length)] : null;
     const rows = Object.entries(metrics).filter(([k]) => !k.startsWith('_')).map(([k, v]) =>
-      `<tr><td>${esc(pretty(k))}</td><td>${fmtMetric(k, v)}</td></tr>`).join('');
+      `<tr><td>${esc(prettyM(k))}</td><td>${fmtMetric(k, v)}</td></tr>`).join('');
     const bars = Object.entries(g.items).map(([k, v]) => `
       <div class="sh-grow"><span class="n">${esc(pretty(k))}</span>
         <span class="b"><i style="width:${Math.max(0, Math.min(5, v)) / 5 * 100}%"></i></span><span class="s">${v}/5</span></div>`).join('');
@@ -209,7 +212,7 @@ export function createHUD(root, engine) {
   pause.querySelector('[data-a=resume]').onclick = () => setPause(false);
   pause.querySelector('[data-a=retry]').onclick = () => { pause.classList.add('hidden'); setPause(false); startDrill(current); };
   pause.querySelector('[data-a=menu]').onclick = () => { pause.classList.add('hidden'); engine.paused = false; toMenu(); };
-  addEventListener('keydown', e => { if (e.key === 'Escape' && running) setPause(!paused); });
+  addEventListener('keydown', e => { if ((e.key === 'Escape' || e.key === 'p' || e.key === 'P') && running) setPause(!paused); });
 
   // ---------- engine events ----------
   const det = e => e.detail ?? e;
