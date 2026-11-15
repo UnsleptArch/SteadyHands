@@ -633,6 +633,13 @@ export function makeForearm() {
   for (let i = 0; i < 4; i++) { const f = new THREE.Mesh(new THREE.CapsuleGeometry(0.075, 0.55 - Math.abs(i - 1.5) * 0.08, 6, 12), hs); f.rotation.z = Math.PI / 2 - 0.08; f.position.set(3.85 - Math.abs(i - 1.5) * 0.05, 0.18, -0.33 + i * 0.22); g.add(f); }
   const th = new THREE.Mesh(new THREE.CapsuleGeometry(0.085, 0.4, 6, 12), hs); th.rotation.set(0, 0.7, Math.PI / 2); th.position.set(3.0, 0.25, 0.58); g.add(th);
   const skinY = CY + rad(0) * SY;
+  // fenestrated sterile drape over the arm + hand; window over the laceration
+  const armTop = (x, z) => { const r = rad(Math.min(2.6, Math.max(-2.9, x))); const zz = Math.abs(z); const inArm = x > -2.9 && x < 2.7;
+    const yArm = inArm ? CY + SY * Math.sqrt(Math.max(0, r * r - Math.min(zz, r) ** 2)) : 0; const fall = sstep(r - 0.05, r + 0.9, zz);
+    const yHand = 0.5 * (1 - sstep(0.45, 0.9, zz)) * sstep(2.3, 2.6, x) * (1 - sstep(4.3, 4.6, x));
+    return Math.max(0.02, (inArm ? yArm * (1 - fall) : 0) + 0.035, yHand); };
+  const armDrape = buildDrape({ W: 12, D: 8, nx: 160, nz: 110, heightFn: armTop, winW: 2.7, winH: 1.15, foldAmp: 0.05, uvScale: 1.6 });
+  armDrape.name = 'ArmDrape'; g.add(armDrape);
   const start = new THREE.Vector3(-0.8, skinY, -0.05), end = new THREE.Vector3(0.8, skinY, 0.1);
   const len = start.distanceTo(end);
   // laceration decal: jagged slit (dark core, parted pink-red edges) + faint bruise halo
@@ -648,7 +655,7 @@ export function makeForearm() {
   const wound = new THREE.Mesh(new THREE.PlaneGeometry(len * 1.06, 0.3), woundMat);
   wound.rotation.x = -Math.PI / 2; wound.position.copy(start).lerp(end, 0.5); wound.position.y += 0.012; wound.rotation.z = -Math.atan2(end.z - start.z, end.x - start.x); g.add(wound);
   const bc = canvas(256, 128), bg2 = bc.getContext('2d'), grd = bg2.createRadialGradient(128, 64, 10, 128, 64, 120); grd.addColorStop(0, 'rgba(170,80,80,0.35)'); grd.addColorStop(1, 'rgba(170,80,80,0)');
-  bg2.setTransform(2, 0, 0, 1, -128, 0); bg2.fillStyle = grd; bg2.fillRect(0, 0, 512, 128);
+  bg2.filter = 'blur(16px)'; bg2.fillStyle = 'rgba(190,96,92,0.32)'; bg2.beginPath(); bg2.ellipse(128, 64, 92, 26, 0, 0, Math.PI * 2); bg2.fill(); bg2.filter = 'none';
   const edge = new THREE.Mesh(new THREE.PlaneGeometry(len + 0.5, 0.7), new THREE.MeshStandardMaterial({ map: texFromCanvas(bc), transparent: true, depthWrite: false, roughness: 0.55, polygonOffset: true, polygonOffsetFactor: -1 }));
   edge.rotation.copy(wound.rotation); edge.position.copy(wound.position); edge.position.y -= 0.004; g.add(edge);
   const marks = [];
