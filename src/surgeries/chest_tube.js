@@ -25,8 +25,8 @@ const APEX = { x: 0.1, z: -0.95 }, PEC = { x: -0.8, z: 0.6 }, LAT = { x: 0.95, z
 const SITE_X = 0.1;        // mid-axillary line
 const baseZ = (x) => ribZ(6, x) - RW;               // triangle base: top edge of rib 6 (5th space / nipple level)
 const side = (a, b, x, z, sgn) => sgn * ((b.x - a.x) * (z - a.z) - (b.z - a.z) * (x - a.x));
-const pecIn = (x, z) => side(APEX, PEC, x, z, 1) / Math.hypot(PEC.x - APEX.x, PEC.z - APEX.z);   // >0 behind the pec edge
-const latIn = (x, z) => side(APEX, LAT, x, z, -1) / Math.hypot(LAT.x - APEX.x, LAT.z - APEX.z);  // >0 in front of the lat edge
+const pecIn = (x, z) => side(APEX, PEC, x, z, -1) / Math.hypot(PEC.x - APEX.x, PEC.z - APEX.z);   // >0 behind the pec edge
+const latIn = (x, z) => side(APEX, LAT, x, z, 1) / Math.hypot(LAT.x - APEX.x, LAT.z - APEX.z);  // >0 in front of the lat edge
 const segDist = (a, b, x, z) => {
   const abx = b.x - a.x, abz = b.z - a.z, t = clamp(((x - a.x) * abx + (z - a.z) * abz) / (abx * abx + abz * abz), 0, 1);
   return Math.hypot(x - (a.x + abx * t), z - (a.z + abz * t));
@@ -34,15 +34,17 @@ const segDist = (a, b, x, z) => {
 const NIP = { x: -1.05, z: icsZ(5, -1.05) };
 
 function skinHeight(x, z) {
-  const pec = sstep(-0.02, 0.09, -pecIn(x, z)), lat = sstep(-0.02, 0.1, -latIn(x, z));
+  const pec = sstep(-0.06, 0.16, -pecIn(x, z)), lat = sstep(-0.06, 0.18, -latIn(x, z));
   const muscle = Math.max(pec, lat);
-  let h = 0.022 * pec + 0.028 * lat;
+  let h = 0.03 * pec + 0.036 * lat;
   let rib = 0;
-  for (let k = 2; k <= 9; k++) { const d = (z - ribZ(k, x)) / 0.055; rib += Math.exp(-d * d); }
-  h += rib * 0.011 * (1 - 0.65 * muscle);              // ribs palpable, muffled under the muscle bellies
+  for (let k = 2; k <= 9; k++) { const d = (z - ribZ(k, x)) / 0.06; rib += Math.exp(-d * d); }
+  h += rib * 0.02 * (1 - 0.6 * muscle);               // ribs palpable, muffled under the muscle bellies
   const nd = Math.hypot(x - NIP.x, z - NIP.z);
-  h += 0.006 * Math.exp(-((nd / 0.05) ** 2));
-  return h;
+  h += 0.008 * Math.exp(-((nd / 0.05) ** 2));
+  // blend to flat at the drape window so the hem stays on top
+  const edge = sstep(0, 0.14, 1.3 - Math.abs(x)) * sstep(0, 0.14, 1.0 - Math.abs(z));
+  return h * edge - 0.012 * (1 - edge);
 }
 
 // ---------------------------------------------------------------- audio: pleural pop + rush of air
@@ -247,7 +249,7 @@ export default {
     try { monitorReal = typeof art.makeVitalsMonitor === 'function' ? art.makeVitalsMonitor() : null; } catch { monitorReal = null; }
     let monitor = null;
     if (monitorReal && monitorReal.mesh) {
-      monitorReal.mesh.position.set(-2.6, Y0 - 2.3, -2.3); monitorReal.mesh.rotation.y = 0.5; group.add(monitorReal.mesh);
+      monitorReal.mesh.position.set(-3.6, Y0 - 2.3, -3.6); monitorReal.mesh.rotation.y = 0.6; group.add(monitorReal.mesh);
       monitor = {
         mesh: monitorReal.mesh,
         setVitals(o) {

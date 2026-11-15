@@ -221,8 +221,16 @@ export default {
     const finGb = gbCurveFor(F1, N1), finDuct = ductCurveFor(N1), finArt = arteryCurveFor(finGb);
     const plateAt = (t) => finGb.getPoint(t).add(V(gbR(t) * 1.02, -0.01, 0));
     // cystic plate (pale liver bed exposed when the lower third is taken down)
-    { const pts = []; for (let i = 0; i <= 12; i++) pts.push(plateAt(0.4 + 0.55 * i / 12).add(V(0.02, -0.03, 0)));
-      cav.add(tubeAlong(new THREE.CatmullRomCurve3(pts), 0.035, wet(0xe9cfc0, 0.5), 24, 8)); }
+    { // flat ribbon of pale liver bed between gallbladder and liver
+      const pos = [], idx = [], N = 16;
+      for (let i = 0; i <= N; i++) {
+        const t = 0.4 + 0.55 * i / N, p = plateAt(t).add(V(0.0, -0.04, 0)), q = plateAt(Math.min(1, t + 0.01)).sub(plateAt(Math.max(0, t - 0.01)));
+        const n = V(-q.z, 0, q.x).normalize().multiplyScalar(0.045 * Math.sin(Math.PI * i / N) + 0.008);
+        pos.push(p.x - n.x * 0.6, p.y, p.z - n.z * 0.6, p.x + n.x, p.y - 0.01, p.z + n.z);
+        if (i < N) { const k = i * 2; idx.push(k, k + 1, k + 2, k + 1, k + 3, k + 2); }
+      }
+      const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setIndex(idx); geo.computeVertexNormals();
+      cav.add(new THREE.Mesh(geo, wet(0xc9968a, 0.5, { side: THREE.DoubleSide }))); }
 
     // ---------------- fat over Calot's triangle and the lower third (cleared by the hook)
     const strands = [

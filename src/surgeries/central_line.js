@@ -96,9 +96,23 @@ export default {
         drapeParts.forEach((d, i) => { d.position.y = drapeY0[i] + (1 - e) * 0.9; }); if (u < 1) requestAnimationFrame(tick); };
       requestAnimationFrame(tick);
     }
+    // antiseptic stain (painted in overlapping strokes, irregular edge) that appears with the prep
+    const stainTex = (() => {
+      const c = document.createElement('canvas'); c.width = 512; c.height = 352; const x = c.getContext('2d');
+      let s = 7; const r = () => (s = (s * 16807) % 2147483647) / 2147483647;
+      for (let i = 0; i < 260; i++) {
+        const px = 40 + r() * 432, py = 30 + r() * 292, rad = 30 + r() * 60;
+        const g = x.createRadialGradient(px, py, 0, px, py, rad);
+        g.addColorStop(0, `rgba(150,72,22,${0.10 + r() * 0.08})`); g.addColorStop(1, 'rgba(150,72,22,0)');
+        x.fillStyle = g; x.beginPath(); x.arc(px, py, rad, 0, Math.PI * 2); x.fill();
+      }
+      const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+    })();
+    const stain = new THREE.Mesh(new THREE.PlaneGeometry(FW + 0.3, FH + 0.3), new THREE.MeshStandardMaterial({ map: stainTex, transparent: true, opacity: 0, roughness: 0.35, depthWrite: false }));
+    stain.rotation.x = -Math.PI / 2; stain.position.set(C.x, skinY + 0.002, C.z); stain.renderOrder = 1; group.add(stain);
     function applyPrep() {
       const t0 = performance.now();
-      const tick = () => { if (disposed) return; const u = Math.min(1, (performance.now() - t0) / 900); rawMat.opacity = 1 - u; if (u < 1) requestAnimationFrame(tick); else raw.visible = false; };
+      const tick = () => { if (disposed) return; const u = Math.min(1, (performance.now() - t0) / 900); rawMat.opacity = 1 - u; stain.material.opacity = 0.85 * u; if (u < 1) requestAnimationFrame(tick); else raw.visible = false; };
       requestAnimationFrame(tick);
     }
     // skin-marker landmarks: SCM heads + clavicle (the triangle whose apex we scan)
@@ -121,10 +135,11 @@ export default {
     const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.075, 0.55, 20), grey); handle.position.y = 0.76; probe.add(handle);
     const notch = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.06, 0.03), std(0x3ec5b5, { emissive: 0x1b6d64 })); notch.position.set(0, 0.17, -0.23); probe.add(notch);
     const midTick = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.015, 0.012), std(0xffffff)); midTick.position.set(0, 0.23, 0); probe.add(midTick);
-    const cable = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([V(0, 1.02, 0), V(0, 1.35, 0.1), V(0.3, 1.5, 0.6), V(0.8, 1.2, 1.4)]), 24, 0.025, 8), dark); probe.add(cable);
-    const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.2, 1.2, 24, 1, true), new THREE.MeshStandardMaterial({ color: 0xdfe9f2, transparent: true, opacity: 0.28, roughness: 0.15, side: THREE.DoubleSide, depthWrite: false }));
-    sleeve.scale.z = 1.45; sleeve.position.y = 0.6; sleeve.visible = false; probe.add(sleeve);
+    const cable = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([V(0, 1.02, 0), V(0, 1.3, -0.05), V(0.15, 1.55, -0.4), V(0.4, 1.7, -1.1)]), 24, 0.025, 8), dark); probe.add(cable);
+    const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.105, 0.125, 1.05, 24, 1, true), new THREE.MeshStandardMaterial({ color: 0xdfe9f2, transparent: true, opacity: 0.16, roughness: 0.15, side: THREE.DoubleSide, depthWrite: false }));
+    sleeve.scale.z = 2.1; sleeve.position.y = 0.55; sleeve.visible = false; probe.add(sleeve);
     probe.traverse((m) => { if (m.isMesh) m.castShadow = true; });
+    probe.scale.setScalar(0.8);
     const probeRest = V(C.x + 0.75, skinY + 0.02, C.z + 1.05);
     probe.position.copy(probeRest); group.add(probe);
     const pr = { yaw: 0.75, fan: 0, press: 0, onSkin: false };
@@ -295,13 +310,13 @@ export default {
           // layered soft tissue: skin, subcutis, SCM (striated), fascia, deep tissue, thyroid edge
           if (dep < 0.8) b = 2.1;
           else if (dep < 3.4) b = 0.55 + (Math.sin(z * 0.9 + dep * 3.1) > 0.93 ? 0.9 : 0);
-          else if (dep < 10.5 && z > -15 && z < 19) b = 0.5 + 0.9 * Math.max(0, Math.sin(dep * 2.4 + z * 0.13 + Math.sin(z * 0.2))) ** 8;
+          else if (dep < 10.5 && z > -15 && z < 19) b = 0.5 + (Math.sin(dep * 1.6 + 1.1 * Math.sin(z * 0.11) + 0.4 * Math.sin(z * 0.37)) > 0.9 ? 0.75 : 0);
           else if (dep < 11.3 && z > -15 && z < 19) b = 1.7;
           else if (z < -16 && dep > 4 && dep < 21) b = 1.15;
-          else b = 0.82;
+          else b = 0.7;
           // transverse process + acoustic shadow (deep, medial)
-          const tp = 31 + 0.02 * (z + 12) * (z + 12);
-          if (z > -22 && z < -2) { if (dep > tp && dep < tp + 1.3) b = 2.4; else if (dep > tp + 1.3) b = 0.12; }
+          const tp = 33 + 0.05 * (z + 13) * (z + 13);
+          if (z > -20 && z < -6) { if (dep > tp && dep < tp + 1.3) b = 2.4; else if (dep > tp + 1.3) b = 0.12; }
           // vessels: artery thick bright wall, vein thin wall, posterior acoustic enhancement
           const qa = ((z - ART.z) / aR) ** 2 + ((dep - aD) / aR) ** 2;
           const qv = ((z - VEIN.z) / vRx) ** 2 + ((dep - vD) / vRy) ** 2;
@@ -314,7 +329,8 @@ export default {
           }
           const si = ((((dep * 6) | 0) & 511) << 9) | ((((z + 80) * 5) | 0) & 511);
           const n = NZ[(py * US_W + px + off) & 65535];
-          let val = lumen ? 0.03 + 0.05 * n : b * SPK[si] * att * 0.36 * (0.9 + 0.2 * n);
+          const sp = SPK[si];
+          let val = lumen ? 0.025 + 0.04 * n : b * sp * sp * att * 0.27 * (0.9 + 0.2 * n);
           if (val > 1) val = 1;
           const p = (py * US_W + px) << 2;
           const g = val * 255;
@@ -406,7 +422,7 @@ export default {
       {
         title: 'Sterile bundle & probe placement', tool: null, plane: skinY,
         instr: 'Tick the sterile bundle in order (left). Then drag the probe onto the teal band and scroll to rotate it square (0°).',
-        cam: camAt(0.15, 2.35, 1.75, 0.55),
+        cam: camAt(0.1, 3.3, 2.5, 0.75),
         start(S) {
           ck.style.display = '';
           let next = 0, t0 = 0, held = false, aligned = 0, warnedT = false;
@@ -476,7 +492,7 @@ export default {
       {
         title: 'Vein or artery? Compression test', tool: null, plane: skinY,
         instr: 'Hold the mouse button to press the probe down for a second. Watch which vessel collapses, then click the VEIN on the ultrasound.',
-        cam: camAt(0.15, 2.2, 1.6, 0.55),
+        cam: camAt(0.1, 3.0, 2.25, 0.7),
         start(S) {
           pr.onSkin = true;
           let held = 0, compressed = false, done = false, wrong = 0;
@@ -502,6 +518,7 @@ export default {
               if (ev.down) { held += dt; if (held > 1 && !compressed) { compressed = true; S.info('Vein collapses, artery keeps pulsing'); S.setInstr('Now click the vessel that collapsed (the vein) on the ultrasound screen →'); } }
               else held = 0;
               setTag(ev.down && !done ? 'Compressing…' : done ? 'IJV identified' : compressed ? 'Click the vein' : 'Transverse view · right IJ');
+              if (done) usClick = null;
               return done && pr.press < 0.05;
             },
             async bot(bot) {
@@ -519,7 +536,7 @@ export default {
       {
         title: 'Needle under ultrasound', tool: null, plane: skinY,
         instr: 'Move = entry point · scroll = needle angle (30–60°) · hold mouse = advance, Space = withdraw · A / D tilt the beam to keep the TIP in view.',
-        cam: camAt(-0.02, 1.85, 1.35, 0.5),
+        cam: camAt(-0.1, 2.75, 2.05, 0.65),
         start(S) {
           needle.visible = true; entryRing.visible = true; aimLine.visible = true; setChip(0);
           let done = false, lastAngL = -1, steer = 0, startT = 0;
@@ -600,7 +617,7 @@ export default {
       {
         title: 'Guidewire: Seldinger technique', tool: null, plane: skinY,
         instr: 'Syringe off. HOLD the mouse button and drag DOWN to feed the J-wire (SHIFT = gentle). Aim for 12–18 cm. Never let go of the wire.',
-        cam: camAt(-0.02, 1.85, 1.35, 0.5),
+        cam: camAt(-0.1, 2.75, 2.05, 0.65),
         start(S) {
           setChip(1); syr.visible = false; hoop.visible = true; wire.visible = true; nd.fluid = 'none';
           let lastZ = null, needleOut = false, done = false, ectopy = false, fastArmed = true, wOut = 0, everLost = false;
@@ -673,7 +690,7 @@ export default {
       {
         title: 'Dilate, thread catheter, confirm', tool: null, plane: skinY,
         instr: 'Dilator over the wire: hold and drag DOWN into the teal band (skin and tract only), then release.',
-        cam: camAt(-0.02, 1.85, 1.35, 0.5),
+        cam: camAt(-0.1, 2.75, 2.05, 0.65),
         start(S) {
           setChip(2); dil.visible = true; wire.visible = true; needle.visible = false;
           let phase = 0, D = 0, lastZ = null, lacArmed = true, done = false, lockT = 0, ectArmed = true;
@@ -767,7 +784,7 @@ export default {
 
     const controller = createSurgery({
       id: ID, engine, art, group, steps, monitor, parTime: 95,
-      wideCam: { pos: [C.x + 0.4, skinY + 3.2, C.z + 2.6], target: [C.x + 0.75, skinY, C.z] },
+      wideCam: { pos: [C.x + 0.3, skinY + 4.6, C.z + 3.6], target: [C.x + 0.95, skinY, C.z] },
       summary,
     });
     const baseUpdate = controller.update;

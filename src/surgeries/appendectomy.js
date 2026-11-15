@@ -77,11 +77,13 @@ export default {
       organ.updateMatrixWorld(true);
       const b = new THREE.Box3().setFromObject(organ);
       const sx = b.max.x - b.min.x, sz = b.max.z - b.min.z;
-      const k = Math.min(1, (WIN_W * 0.92) / sx, (WIN_H * 0.92) / sz);
+      // whole specimen ~55% of the window (cecum ≈ a quarter of the field), lying BELOW the skin inside the cavity
+      const k = Math.min((WIN_W * 0.55) / sx, (WIN_H * 0.6) / sz);
       organ.scale.multiplyScalar(k); organ.updateMatrixWorld(true);
       const b2 = new THREE.Box3().setFromObject(organ);
       organ.position.x += C.x - (b2.min.x + b2.max.x) / 2;
       organ.position.z += C.z - (b2.min.z + b2.max.z) / 2;
+      organ.position.y += Math.min(prepY - 0.035 - b2.max.y, cavityY + 0.02 - b2.min.y);
       organ.updateMatrixWorld(true);
       const ud = organ.userData;
       if (ud.curve) {
@@ -107,7 +109,9 @@ export default {
       arteryPts = apCurve.getPoints(20).map((p, i) => p.clone().add(V(0, -0.03, 0.28 * (1 - 0.7 * i / 20))));
       const art2 = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(arteryPts), 40, 0.015, 6), flat(0xb02e32)); group.add(art2);
     }
-    const apTop = (t) => apCurve.getPoint(t).clone().add(V(0, 0.06, 0));
+    const AP_R = organ && organ.userData.curve ? 0.09 * organ.scale.x : 0.07;
+    const apTop = (t) => apCurve.getPoint(t).clone().add(V(0, AP_R, 0));
+    const AP_Y = apCurve.getPoints(10).reduce((a, p) => a + p.y, 0) / 11 + AP_R; // work plane for steps on the appendix
     const arteryDist = (p) => { let best = Infinity; for (const q of arteryPts) best = Math.min(best, Math.hypot(p.x - q.x, p.z - q.z, (p.y - q.y) * 0.5)); return best; };
     // highlight ring that marks the appendix once found
     const findRing = makeRing(0.1, 0.125, 0x3ec5b5, 0, 0); findRing.material.depthTest = false; findRing.renderOrder = 9; group.add(findRing);
@@ -117,13 +121,18 @@ export default {
     else monitor = null;
 
     // ---------------- retractor props ----------------
-    const steelMat = new THREE.MeshStandardMaterial({ color: 0xc9d0d6, metalness: 0.85, roughness: 0.3 });
+    const steelMat = new THREE.MeshStandardMaterial({ color: 0xd7dade, metalness: 1, roughness: 0.28, side: THREE.DoubleSide });
     const retractors = [-1, 1].map((s) => {
       const r = new THREE.Group();
-      const blade = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.1, 0.05), steelMat); blade.position.set(0, -0.03, 0); r.add(blade);
-      const arm = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.035, 0.75), steelMat); arm.position.set(0, 0.03, s * 0.37); r.add(arm);
-      const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.3, 10), new THREE.MeshStandardMaterial({ color: 0x1d2127, roughness: 0.5 }));
-      grip.rotation.z = Math.PI / 2; grip.position.set(0, 0.05, s * 0.75); r.add(grip);
+      // Army-Navy style: thin curved lip hooked into the wound, flat shank bending out over the skin, finger hole
+      const lip = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.34, 18, 1, true, 0, Math.PI * 0.9), steelMat);
+      lip.rotation.z = Math.PI / 2; lip.rotation.x = s > 0 ? Math.PI * 0.55 : -Math.PI * 0.45; lip.position.set(0, -0.06, -s * 0.0); r.add(lip);
+      const shank = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.012, 0.42), steelMat);
+      shank.position.set(0, 0.03, s * 0.25); shank.rotation.x = s * 0.08; r.add(shank);
+      const neck = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.012, 0.09), steelMat);
+      neck.position.set(0, 0.0, s * 0.04); neck.rotation.x = -s * 0.9; r.add(neck);
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.013, 8, 20), steelMat);
+      ring.rotation.x = Math.PI / 2; ring.position.set(0, 0.045, s * 0.5); r.add(ring);
       r.visible = false; group.add(r); r.userData.s = s;
       return r;
     });
@@ -161,18 +170,18 @@ export default {
             onChange(ts) {
               const t = Math.min(1, (ts[0] + ts[1]) / 2);
               setOpen(t);
-              if (organ) organ.visible = t > 0.25;
               if (incMech && t > 0.1) incMech.group.visible = false;
             },
           });
         },
       },
       {
-        title: 'Locate & grasp the appendix', tool: 'grasper', plane: ORG_Y + 0.08,
+        title: 'Locate & grasp the appendix', tool: 'grasper', plane: AP_Y,
         instr: 'Laparoscopic grasper: controls are MIRRORED (fulcrum effect). Find the appendix tip, then hold to grasp. Avoid the artery.',
         cam: closeCam(tipFocus.x - C.x, tipFocus.z - C.z + 0.05, 1.8, 1.15),
         start(S) {
-          const y = ORG_Y + 0.08;
+          if (organ) organ.visible = true;
+          const y = AP_Y;
           const target = apTop(0.97);
           const pivot = V(C.x + 2.6, prepY + 1.3, C.z - 0.6); // port: shaft leaves the frame to the right, handle off-screen
           const centre = V(tipFocus.x, y, tipFocus.z);
@@ -229,11 +238,11 @@ export default {
         },
       },
       {
-        title: 'Ligate the artery & clip the base', tool: 'driver', plane: ORG_Y + 0.12,
+        title: 'Ligate the artery & clip the base', tool: 'driver', plane: AP_Y + 0.01,
         instr: 'Click the numbered rings in order: 1 ties off the appendicular artery, 2 clips the appendix base.',
         cam: closeCam(apTop(0.25).x - C.x, apTop(0.25).z - C.z + 0.05, 1.5, 0.95),
         start(S) {
-          const y = ORG_Y + 0.12;
+          const y = AP_Y + 0.01;
           const a = arteryPts[Math.round(arteryPts.length * 0.15)];
           const t1 = V(a.x, y, a.z), t2 = apTop(0.2).setY(y);
           const clipMat = new THREE.MeshStandardMaterial({ color: 0xdfe4ea, metalness: 0.9, roughness: 0.25 });
@@ -250,11 +259,11 @@ export default {
         },
       },
       {
-        title: 'Cut & remove the appendix', tool: 'scalpel', plane: ORG_Y + 0.12,
+        title: 'Cut & remove the appendix', tool: 'scalpel', plane: AP_Y + 0.01,
         instr: 'Cut across the appendix along the short purple line, just beyond the clip.',
         cam: closeCam(apTop(0.3).x - C.x, apTop(0.3).z - C.z + 0.05, 1.5, 0.95),
         start(S) {
-          const y = ORG_Y + 0.12;
+          const y = AP_Y + 0.01;
           const c = apCurve.getPoint(0.32), tan = apCurve.getTangent(0.32);
           const n = V(-tan.z, 0, tan.x).normalize();
           const pts = []; for (let i = 0; i <= 8; i++) pts.push(c.clone().addScaledVector(n, -0.17 + 0.34 * i / 8).setY(y));
