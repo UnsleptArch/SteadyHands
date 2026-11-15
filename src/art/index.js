@@ -233,11 +233,11 @@ export function makeScalpel() {
   bg.translate(0, 0, -0.006);
   const blade = new THREE.Mesh(bg, steel(0.2)); blade.rotation.y = Math.PI / 2; blade.position.z = 0; g.add(blade);
   // slot + holder
-  const holder = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.12, 0.28), steel(0.3)); holder.position.set(0, 0.125, 0.72); g.add(holder);
-  const handle = latheAlongZ([[0.85, 0.035], [0.95, 0.052], [1.3, 0.07], [1.9, 0.075], [2.3, 0.055], [2.35, 0.0]], steel(0.3));
+  const holder = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.16, 0.28), steel(0.3)); holder.position.set(0, 0.125, 0.72); g.add(holder);
+  const handle = latheAlongZ([[0.85, 0.05], [0.95, 0.075], [1.3, 0.1], [1.9, 0.11], [2.3, 0.08], [2.35, 0.0]], steel(0.3));
   handle.scale.set(0.8, 1, 1); handle.position.y = 0.13; g.add(handle);
   for (let i = 0; i < 12; i++) { // grip rings
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.073, 0.007, 8, 24), steel(0.35)); ring.scale.set(0.8, 1, 1);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.108, 0.01, 8, 24), steel(0.35)); ring.scale.set(0.8, 1, 1);
     ring.position.set(0, 0.13, 1.35 + i * 0.07); g.add(ring);
   }
   shadowAll(g); g.userData = { tip: new THREE.Vector3(0, 0, 0), length: 2.35, kind: 'scalpel' };
@@ -255,8 +255,8 @@ export function makeNeedleDriver() {
     for (let i = 0; i < pos.count; i++) { if (pos.getZ(i) < 0) { pos.setX(i, pos.getX(i) * 0.55); pos.setY(i, pos.getY(i) * 0.6); } }
     jg.computeVertexNormals();
     jaw.position.set(sgn * 0.015, 0, -pivotZ / 2);
-    const shank = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.045, 1.0), steel(0.28)); shank.position.set(sgn * 0.015, 0, 0.5);
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.025, 12, 32), steel(0.25)); ring.rotation.x = Math.PI / 2; ring.scale.set(0.8, 1, 1.15);
+    const shank = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.07, 1.0), steel(0.28)); shank.position.set(sgn * 0.015, 0, 0.5);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.04, 12, 32), steel(0.25)); ring.rotation.x = Math.PI / 2; ring.scale.set(0.8, 1, 1.15);
     ring.position.set(sgn * 0.19, 0, 1.28);
     const arm = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.04, 0.06), steel(0.28)); arm.position.set(sgn * 0.09, 0, 1.0); arm.rotation.y = sgn * -0.4;
     p.add(jaw, shank, ring, arm); p.userData.sgn = sgn; halves.push(p); g.add(p);
@@ -299,7 +299,7 @@ export function makeCurvedNeedle() {
 export function makeGrasper() {
   const g = new THREE.Group(); g.name = 'Grasper';
   const L = 3.2;
-  const shaft = latheAlongZ([[0.14, 0.032], [0.2, 0.032], [L, 0.032], [L, 0]], steel(0.22), 20); g.add(shaft);
+  const shaft = latheAlongZ([[0.14, 0.05], [0.2, 0.05], [L, 0.05], [L, 0]], steel(0.22), 20); g.add(shaft);
   const collar = latheAlongZ([[0.14, 0.038], [0.2, 0.038], [0.22, 0]], steel(0.3)); g.add(collar);
   const jaws = [];
   for (const sgn of [-1, 1]) {
@@ -312,7 +312,7 @@ export function makeGrasper() {
   }
   // handle (pistol-grip style, black polymer)
   const hz = L;
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.5, 8, 16), handleMat()); body.rotation.x = Math.PI / 2; body.position.z = hz + 0.3; g.add(body);
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.15, 0.5, 8, 16), handleMat()); body.rotation.x = Math.PI / 2; body.position.z = hz + 0.3; g.add(body);
   const grip = new THREE.Mesh(new THREE.CapsuleGeometry(0.075, 0.5, 8, 16), handleMat()); grip.position.set(0, -0.35, hz + 0.45); grip.rotation.x = 0.25; g.add(grip);
   const trigger = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.022, 10, 24, Math.PI), handleMat()); trigger.rotation.set(0, Math.PI / 2, 0); trigger.position.set(0, -0.12, hz + 0.28); g.add(trigger);
   const knob = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.1, 20), steel(0.3)); knob.rotation.x = Math.PI / 2; knob.position.z = hz - 0.02; g.add(knob);
@@ -388,4 +388,153 @@ export function makeVessel(path, radius = 0.045) {
     distanceTo(p) { const q = V3(p); let best = Infinity; for (const s of samples) best = Math.min(best, s.distanceTo(q)); return best; } };
   m.setHighlight = (on) => { m.material.emissive.set(on ? 0xff2a2a : 0x000000); m.material.emissiveIntensity = on ? 0.6 : 0; };
   return m;
+}
+
+// ================================================================ SURGERIES ADDENDUM (low-poly, flat-shaded, no gore)
+const flat = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 0.8, metalness: 0.02, ...extra });
+const skin = () => mats.skin ||= flat(0xcfc4b3);
+
+/** makeDummy() -> Group: OR table + supine CPR-style mannequin. Head at -X, feet at +X, table top at y=0, body lies on y>0.
+ *  userData: {abdomen: Vector3 (centre of abdomen at skin top), skinY, torsoWidth(z), torsoLength(x), rightArm: forearm anchor Vector3} */
+export function makeDummy() {
+  const g = new THREE.Group(); g.name = 'Dummy';
+  const table = new THREE.Mesh(new THREE.BoxGeometry(22, 0.3, 7), new THREE.MeshPhysicalMaterial({ color: 0x9aa3ab, metalness: 0.9, roughness: 0.35 }));
+  table.position.y = -0.15; g.add(table);
+  const pad = new THREE.Mesh(new THREE.BoxGeometry(21, 0.2, 6.4), flat(0x2c4a5a)); pad.position.y = 0.1; g.add(pad);
+  for (const x of [-8, 8]) { const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 6, 8), flat(0x70787f)); leg.position.set(x, -3.3, 0); g.add(leg); }
+  const base = new THREE.Mesh(new THREE.BoxGeometry(18, 0.3, 3), flat(0x4a5056)); base.position.y = -6.4; g.add(base);
+  const body = new THREE.Group(); body.position.y = 0.2; g.add(body);
+  const seg = (geo, x, y, z, mat = skin()) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); body.add(m); return m; };
+  const torso = new THREE.CylinderGeometry(1.55, 1.35, 6, 8, 1); torso.rotateZ(Math.PI / 2); torso.scale(1, 0.55, 1.2);
+  seg(torso, -1.0, 0.95, 0).scale.set(1, 1, 1);
+  const chest = new THREE.SphereGeometry(1.7, 8, 6); seg(chest, -3.4, 0.95, 0).scale.set(0.7, 0.62, 1.15);
+  const hips = new THREE.SphereGeometry(1.45, 8, 6); seg(hips, 2.2, 0.85, 0).scale.set(0.9, 0.62, 1.2);
+  seg(new THREE.CylinderGeometry(0.5, 0.6, 0.8, 8), -5.6, 0.9, 0).rotation.z = Math.PI / 2; // neck
+  const head = seg(new THREE.IcosahedronGeometry(1.05, 1), -6.8, 1.0, 0); head.scale.set(1.15, 1, 0.95);
+  seg(new THREE.ConeGeometry(0.16, 0.35, 4), -7.85, 1.0, 0, flat(0xbfb3a1)).rotation.z = Math.PI / 2; // nose
+  for (const sz of [-1, 1]) {
+    const arm = new THREE.CylinderGeometry(0.42, 0.34, 4.4, 7); arm.rotateZ(Math.PI / 2); seg(arm, -1.2, 0.5, sz * 2.45);
+    const leg = new THREE.CylinderGeometry(0.75, 0.5, 6.5, 7); leg.rotateZ(Math.PI / 2); seg(leg, 6.2, 0.55, sz * 0.8);
+    seg(new THREE.SphereGeometry(0.4, 6, 5), 1.15, 0.5, sz * 2.45, skin());
+  }
+  const skinY = 0.2 + 0.95 * 1 + 1.35 * 0.55;
+  g.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
+  g.userData = { abdomen: new THREE.Vector3(-0.5, skinY, 0), skinY, torsoWidth: 3.6, torsoLength: 6, rightForearm: new THREE.Vector3(-1.2, 0.7, 2.45), kind: 'dummy' };
+  return g;
+}
+
+/** makeDrapeWithWindow(w=6,h=5, winW=2.8, winH=2.2) -> {mesh, windowCenter (Vector3 local, at y=0), windowSize}. Lies in XZ plane, centred at origin;
+ *  place it at dummy.userData.skinY + 0.03 above the abdomen (window centre = mesh centre). */
+export function makeDrapeWithWindow(w = 6, h = 5, winW = 2.8, winH = 2.2) {
+  const s = new THREE.Shape(); s.moveTo(-w / 2, -h / 2); s.lineTo(w / 2, -h / 2); s.lineTo(w / 2, h / 2); s.lineTo(-w / 2, h / 2); s.closePath();
+  const hole = new THREE.Path(); hole.moveTo(-winW / 2, -winH / 2); hole.lineTo(-winW / 2, winH / 2); hole.lineTo(winW / 2, winH / 2); hole.lineTo(winW / 2, -winH / 2); hole.closePath(); s.holes.push(hole);
+  const geo = new THREE.ShapeGeometry(s); geo.rotateX(-Math.PI / 2);
+  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0x2f8f74, flatShading: true, roughness: 0.9, side: THREE.DoubleSide }));
+  mesh.receiveShadow = true; mesh.name = 'DrapeWindow';
+  // betadine-style skin prep ring seen through the window
+  const prep = new THREE.Mesh(new THREE.PlaneGeometry(winW + 0.2, winH + 0.2), new THREE.MeshBasicMaterial({ color: 0xd9a35a, transparent: true, opacity: 0.35, depthWrite: false }));
+  prep.rotation.x = -Math.PI / 2; prep.position.y = -0.005; mesh.add(prep); mesh.userData.prep = prep; // hide prep when the incision opens the cavity
+  return { mesh, prep, windowCenter: new THREE.Vector3(0, 0, 0), windowSize: { w: winW, h: winH } };
+}
+
+function tubeAlong(pts, r, mat, seg = 6) { return new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(V3)), pts.length * 6, r, seg), mat); }
+/** makeOrgan(kind) kind: 'appendix'|'colon'|'gallbladder'|'liver'|'artery'. Flat-coloured toy-anatomy; centred near origin, lying in XZ, ~window sized.
+ *  userData: {kind, anchor (Vector3 where a tool should grasp/cut), radius}. Artery has userData.curve. */
+export function makeOrgan(kind = 'appendix') {
+  const g = new THREE.Group(); g.name = 'Organ_' + kind;
+  let anchor = new THREE.Vector3(), radius = 0.2, extra = {};
+  if (kind === 'appendix') {
+    const m = flat(0xe39a86);
+    const pts = [[-0.9, 0.1, 0.5], [-0.5, 0.15, 0.1], [-0.1, 0.12, 0.45], [0.35, 0.15, 0.2], [0.7, 0.12, 0.5]];
+    g.add(tubeAlong(pts.map(([x, y, z]) => ({ x, y, z })), 0.11, m, 8));
+    const tip = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 6), m); tip.position.set(0.7, 0.12, 0.5); g.add(tip);
+    const cecum = new THREE.Mesh(new THREE.SphereGeometry(0.5, 8, 6), flat(0xd9b27a)); cecum.position.set(-1.1, 0.25, 0.5); cecum.scale.set(1, 0.7, 1); g.add(cecum);
+    const meso = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.03, 0.35), flat(0xf0d3a8)); meso.position.set(-0.2, 0.06, 0.2); g.add(meso);
+    anchor.set(0.2, 0.15, 0.3); radius = 0.12; extra.base = new THREE.Vector3(-0.8, 0.12, 0.45);
+  } else if (kind === 'colon') {
+    const m = flat(0xd9a78f);
+    const pts = []; for (let i = 0; i <= 24; i++) { const a = i / 24; pts.push({ x: -1.6 + 3.2 * a, y: 0.2, z: 0.9 * Math.sin(a * Math.PI * 3) }); }
+    const t = tubeAlong(pts, 0.28, m, 8); g.add(t);
+    for (let i = 1; i < 24; i += 2) { const b = new THREE.Mesh(new THREE.TorusGeometry(0.29, 0.04, 5, 8), flat(0xc48d75)); b.position.copy(pts[i]); b.rotation.y = Math.PI / 2 - 0.4 * Math.cos((i / 24) * Math.PI * 3); g.add(b); }
+    anchor.set(0, 0.2, 0); radius = 0.3;
+  } else if (kind === 'gallbladder') {
+    const m = flat(0x6fae5a, { roughness: 0.5 });
+    const sac = new THREE.Mesh(new THREE.SphereGeometry(0.38, 8, 6), m); sac.scale.set(1.5, 0.8, 0.8); g.add(sac);
+    const duct = tubeAlong([{ x: 0.5, y: 0, z: 0 }, { x: 0.9, y: 0.05, z: 0.1 }, { x: 1.2, y: 0.05, z: -0.1 }], 0.07, flat(0xb9c46a), 6); g.add(duct);
+    anchor.set(0.9, 0.05, 0.1); radius = 0.38;
+  } else if (kind === 'liver') {
+    const m = flat(0x9c4a3c);
+    const a = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 1), m); a.scale.set(1.7, 0.45, 1); g.add(a);
+    const b = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 1), flat(0xa95344)); b.scale.set(0.9, 0.38, 0.8); b.position.set(1.3, 0, 0.5); g.add(b);
+    anchor.set(0, 0.4, 0); radius = 1;
+  } else if (kind === 'artery') {
+    const pts = [{ x: -1.6, y: 0.1, z: 0.2 }, { x: -0.7, y: 0.12, z: -0.2 }, { x: 0.3, y: 0.1, z: 0.15 }, { x: 1.2, y: 0.12, z: -0.1 }, { x: 1.7, y: 0.1, z: 0.2 }];
+    const t = tubeAlong(pts, 0.1, flat(0xc23a3a, { roughness: 0.45 }), 8); g.add(t);
+    extra.curve = new THREE.CatmullRomCurve3(pts.map(V3)); anchor.set(0.3, 0.1, 0.15); radius = 0.1;
+  } else throw new Error('makeOrgan: unknown kind ' + kind);
+  g.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
+  g.userData = { kind, anchor, radius, ...extra };
+  return g;
+}
+
+/** makeVitalsMonitor() -> {mesh, setVitals({hr,bp:'120/80',spo2}), setAlarm(bool)}. Screen animates a scrolling ECG by itself (rendered each frame via onBeforeRender).
+ *  Faces +Z; ~3 wide x 2.2 tall on a stand. */
+export function makeVitalsMonitor() {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 320; const x = c.getContext('2d');
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  const st = { hr: 72, bp: '120/80', spo2: 98, alarm: false }, trace = new Float32Array(300); let phase = 0, lastT = performance.now(), acc = 0, lastDraw = 0;
+  const beat = (p) => { // one PQRST cycle, p in 0..1
+    if (p < 0.1) return 0.1 * Math.sin(p / 0.1 * Math.PI); if (p > 0.16 && p < 0.19) return -0.15; if (p >= 0.19 && p < 0.23) return 1 - Math.abs(p - 0.21) / 0.02 * 1;
+    if (p >= 0.23 && p < 0.26) return -0.25; if (p > 0.4 && p < 0.55) return 0.22 * Math.sin((p - 0.4) / 0.15 * Math.PI); return 0; };
+  const draw = (now) => {
+    const dt = Math.min(0.1, (now - lastT) / 1000); lastT = now;
+    const bps = st.hr / 60; for (acc += dt * 120; acc >= 1; acc--) { phase = (phase + bps / 120) % 1; trace.copyWithin(0, 1); trace[299] = beat(phase); }
+    x.fillStyle = '#05090c'; x.fillRect(0, 0, 512, 320);
+    const col = st.alarm ? '#ff5a4d' : '#36e08a';
+    x.strokeStyle = col; x.lineWidth = 2.5; x.beginPath();
+    for (let i = 0; i < 300; i++) { const px = 10 + i * 1.5, py = 90 - trace[i] * 55; i ? x.lineTo(px, py) : x.moveTo(px, py); } x.stroke();
+    x.fillStyle = 'rgba(54,224,138,0.5)'; x.fillRect(10 + (phase * 300 | 0) * 0 + 0, 0, 0, 0);
+    x.font = '600 14px Inter, Arial, sans-serif'; x.fillStyle = '#7a8a94'; x.fillText('ECG II', 12, 18);
+    x.font = '700 64px Inter, Arial, sans-serif'; x.fillStyle = col; x.fillText(String(Math.round(st.hr)), 20, 205); x.font = '600 16px Inter, Arial'; x.fillText('HR bpm', 24, 228);
+    x.fillStyle = '#e8d44d'; x.font = '700 44px Inter, Arial'; x.fillText(st.bp, 190, 190); x.font = '600 16px Inter, Arial'; x.fillText('NIBP mmHg', 194, 214);
+    x.fillStyle = '#4dc3ff'; x.font = '700 64px Inter, Arial'; x.fillText(String(Math.round(st.spo2)), 390, 205); x.font = '600 16px Inter, Arial'; x.fillText('SpO2 %', 392, 228);
+    if (st.alarm && (now / 400 | 0) % 2) { x.fillStyle = '#ff5a4d'; x.fillRect(0, 300, 512, 20); }
+    tex.needsUpdate = true;
+  };
+  draw(performance.now());
+  const g = new THREE.Group(); g.name = 'VitalsMonitor';
+  const shell = new THREE.Mesh(new THREE.BoxGeometry(3.1, 2.3, 0.35), flat(0x1b1f24, { flatShading: false, roughness: 0.5 })); shell.position.y = 3.2; g.add(shell);
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 1.75), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false })); screen.position.set(0, 3.25, 0.18); g.add(screen);
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 2.1, 10), steel(0.3)); pole.position.y = 1.05; g.add(pole);
+  const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.9, 0.12, 20), handleMat()); foot.position.y = 0.06; g.add(foot);
+  screen.onBeforeRender = () => { const n = performance.now(); if (n - lastDraw > 33) { lastDraw = n; draw(n); } };
+  shadowAll(g);
+  return { mesh: g, setVitals(v = {}) { Object.assign(st, v); }, setAlarm(b) { st.alarm = !!b; } };
+}
+
+/** makeForearm() -> Group: low-poly forearm + hand lying along X (hand at +X), skin top at y=skinY, resting on y=0.
+ *  userData: {skinY, wound: {start,end (Vector3, on skin), center}, suturePairs:[{entry,exit}x3] (across the wound, z +-0.2), setClosed(t 0..1), bite(i) marks stitch i} */
+export function makeForearm() {
+  const g = new THREE.Group(); g.name = 'Forearm';
+  const R = 0.9;
+  const arm = new THREE.CylinderGeometry(0.7, 0.95, 5, 8); arm.rotateZ(Math.PI / 2); // wrist at -? thin end at +X (hand)
+  const m1 = new THREE.Mesh(arm, skin()); m1.position.set(0, R * 0.9, 0); m1.scale.set(1, 0.9, 1); g.add(m1);
+  const hand = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.35, 1.2), skin()); hand.position.set(3.2, 0.5, 0); g.add(hand);
+  for (let i = 0; i < 4; i++) { const f = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.2, 0.22), skin()); f.position.set(4.2, 0.45, -0.45 + i * 0.3); g.add(f); }
+  const th = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.2, 0.25), skin()); th.position.set(3.5, 0.42, 0.75); th.rotation.y = -0.5; g.add(th);
+  const skinY = R * 0.9 + 0.95 * 0.9 * 0.97;
+  // laceration: pink-red gap + dark centre line; closed progressively
+  const start = new THREE.Vector3(-0.8, skinY, -0.05), end = new THREE.Vector3(0.8, skinY, 0.1);
+  const len = start.distanceTo(end);
+  const woundMat = new THREE.MeshBasicMaterial({ color: 0x7a2e34 }), wound = new THREE.Mesh(new THREE.PlaneGeometry(len, 0.16), woundMat);
+  wound.rotation.x = -Math.PI / 2; wound.position.copy(start).lerp(end, 0.5); wound.position.y += 0.012; wound.rotation.z = -Math.atan2(end.z - start.z, end.x - start.x); g.add(wound);
+  const edge = new THREE.Mesh(new THREE.PlaneGeometry(len + 0.1, 0.3), new THREE.MeshBasicMaterial({ color: 0xd98a86, transparent: true, opacity: 0.6, depthWrite: false })); edge.rotation.copy(wound.rotation); edge.position.copy(wound.position); edge.position.y -= 0.004; g.add(edge);
+  const marks = [];
+  const pairs = [0.2, 0.5, 0.8].map((t) => { const c = start.clone().lerp(end, t); return { entry: c.clone().add(new THREE.Vector3(0, 0, -0.22)), exit: c.clone().add(new THREE.Vector3(0, 0, 0.22)) }; });
+  pairs.forEach((p) => { for (const q of [p.entry, p.exit]) { const d = new THREE.Mesh(new THREE.CircleGeometry(0.045, 10), new THREE.MeshBasicMaterial({ color: 0x2a5ea8 })); d.rotation.x = -Math.PI / 2; d.position.copy(q); d.position.y += 0.015; g.add(d); } });
+  g.userData = { skinY, wound: { start, end, center: start.clone().lerp(end, 0.5) }, suturePairs: pairs, kind: 'forearm',
+    setClosed(t) { wound.scale.y = Math.max(0.05, 1 - t); edge.scale.y = 1 - 0.5 * t; },
+    bite(i, color = 0x1a1d6e) { const p = pairs[i]; const s = tubeAlong([p.entry, p.entry.clone().lerp(p.exit, 0.5), p.exit].map((v) => v.clone().setY(skinY + 0.03)), 0.022, new THREE.MeshStandardMaterial({ color, roughness: 0.6 }), 5); g.add(s); marks.push(s); return s; } };
+  g.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
+  return g;
 }

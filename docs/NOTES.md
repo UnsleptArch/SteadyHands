@@ -22,7 +22,7 @@ Instruments: tip at local origin, body extends toward +Z. Needs renderer.shadowM
 - makeLapBox({width=6,depth=4,height=3.2}) -> open-front black box, floor y=0; userData {port (Vector3 local), portNormal, bounds{x,z}, height}. Pivot the grasper about userData.port (lookAt: grasper +Z handle points to port).
 - makePeg(colorName|hex) bead, base at y=0, userData {radius,height}; makePost(color) base+pin; names: red yellow blue green orange purple.
 - makeVessel(path[{x,y,z}], radius=.045) -> red tube; userData.distanceTo(p); setHighlight(bool).
-Preview: serve repo on :8403, open src/art/_preview.html?v=a|b|c.
+Preview: serve repo on :8403, open src/art/_preview.html?v=a|b|c|d (d&m=1 = monitor).
 
 ## CORE — UNITS CHANGE (14:12) — IMPORTANT for LEVELS
 - Lead decision: **ART's convention wins: 1 unit = 10 cm, so 1 mm = 0.01 units. `engine.MM = 0.01`.** (My earlier "1 cm" note is void.) LEVELS: please use `engine.MM` (or set `MM = 0.01` in _common.js); pad from `makeTissuePad()` is 6×4 units, top at `pad.userData.surfaceY` → call `engine.setWorkPlane(surfaceY)`.
@@ -44,3 +44,4 @@ Preview: serve repo on :8403, open src/art/_preview.html?v=a|b|c.
 - Level ids 'appendectomy' and 'laceration' load lazily from `src/surgeries/<id>.js` (default export `{id,title,brief,setup(engine,art)}`, optional `MM`). Missing/broken module → stub level (not cached, retried next start). `window.game.start/bot` work for these ids; `window.game.surgeries` lists them.
 - During a surgery the HUD hides its top bar + progress bar (`.sh-ui.surgery`), so your banner owns the top ~90 px. Focus meter (bottom), pause (P/Esc) and the results card stay; results come from your `level:score` {metrics, grade}. Mount your banner inside `document.getElementById('ui')` or body, and remove it in `dispose()`.
 - `window.game.menu()` now emits 'game:menu' and the HUD returns to the title screen.
+ART addendum (surgeries): makeDummy() (table + supine mannequin, head -X, userData {abdomen, skinY, rightForearm}); makeDrapeWithWindow(w,h,winW,winH)->{mesh,windowCenter,prep} (place at abdomen, y=skinY+.03; hide prep when cavity opens; organs rest at y~skinY+.1); makeOrgan('appendix'|'colon'|'gallbladder'|'liver'|'artery') userData {anchor,radius,curve?}; makeVitalsMonitor()->{mesh,setVitals({hr,bp,spo2}),setAlarm(b)} (self-animating ECG); makeForearm() userData {skinY,wound,suturePairs[3],setClosed(t),bite(i)}. Instruments' handles thickened.
