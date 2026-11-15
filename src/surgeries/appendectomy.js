@@ -173,7 +173,7 @@ export default {
         start(S) {
           const y = ORG_Y + 0.08;
           const target = apTop(0.97);
-          const pivot = V(C.x + 0.9, prepY + 2.6, C.z + 1.6); // port, up and toward the surgeon
+          const pivot = V(C.x + 2.6, prepY + 1.3, C.z - 0.6); // port: shaft leaves the frame to the right, handle off-screen
           const centre = V(tipFocus.x, y, tipFocus.z);
           const GAIN = 0.9;
           const tip = new THREE.Vector3();
