@@ -66,7 +66,7 @@ export function makeORLights(scene) {
   scene.environment = env;
   scene.environmentIntensity = 0.9;
 
-  const key = new THREE.SpotLight(0xe9f3ff, 85, 0, 0.62, 0.55, 1.6); // cool-white key from above
+  const key = new THREE.SpotLight(0xe9f3ff, 50, 0, 0.62, 0.55, 1.6); // cool-white key from above
   key.position.set(1.2, 9, 2.2);
   key.target.position.set(0, 0, 0);
   key.castShadow = true;
@@ -122,7 +122,7 @@ export function makeTissuePad(o = {}) {
   // printed top surface: skin colour, mottling, rulers and registration marks
   const pxm = 320; // px per unit
   const tex = canvasTex(Math.round(width * pxm / 2) * 2, Math.round(depth * pxm / 2) * 2, (g, W, H) => {
-    g.fillStyle = '#ebbdb0'; g.fillRect(0, 0, W, H);
+    g.fillStyle = '#d9a396'; g.fillRect(0, 0, W, H);
     const r = rand(5);
     for (let i = 0; i < 260; i++) { const x = r() * W, y = r() * H, rad = 20 + r() * 90; const gr = g.createRadialGradient(x, y, 0, x, y, rad);
       const c = r() > .5 ? '255,205,195' : '215,150,140'; gr.addColorStop(0, `rgba(${c},0.10)`); gr.addColorStop(1, `rgba(${c},0)`); g.fillStyle = gr; g.fillRect(x - rad, y - rad, rad * 2, rad * 2); }

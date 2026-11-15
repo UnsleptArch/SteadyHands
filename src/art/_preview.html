@@ -17,6 +17,9 @@ if(q==='a'){
  const nd=A.makeNeedleDriver();nd.position.set(1.7,y+0.5,0.8);nd.rotation.x=0.6;nd.setOpen(.5);s.add(nd);
  const nn=A.makeCurvedNeedle();nn.position.set(1.4,y+0.01,1.2);nn.setThread([{x:1,y:.01,z:1.6},{x:0.6,y:.01,z:1.4}]);s.add(nn);
  cam.position.set(0.5,6,5.5);cam.lookAt(0,0,0);
+}else if(q==='c'){
+ const sc=A.makeScalpel();sc.position.set(-1.2,0,0);s.add(sc);const nd=A.makeNeedleDriver();nd.position.set(0.3,0,0);nd.setOpen(.4);s.add(nd);const nn=A.makeCurvedNeedle();nn.position.set(1.4,0,0);nn.setThread([{x:1,y:0,z:.7}]);s.add(nn);const gr=A.makeGrasper();gr.position.set(2.2,0,-0.3);s.add(gr);
+ cam.position.set(0.3,2.4,5.5);cam.lookAt(0.3,0,1);
 }else{
  const b=A.makeLapBox();s.add(b);
  const gr=A.makeGrasper();const p=b.userData.port;gr.position.set(-0.6,0.6,0.4);gr.lookAt(p.x,p.y,p.z);s.add(gr);
