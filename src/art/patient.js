@@ -30,7 +30,7 @@ const legR = curve([[2.3, 0.72], [4.4, 0.62], [6.5, 0.46], [7.0, 0.45], [8.1, 0.
 const legZ = curve([[2.3, 0.88], [6.6, 0.68], [9.8, 0.78]]);
 const TOE_X = 10.15, TOE_TOP = 2.05;
 // superellipse cross-section falloff: 1 on the centreline, 0 at the edge (flat back, rounded flanks)
-const prof = (u) => (u >= 1 ? 0 : Math.pow(1 - Math.pow(u, 3), 0.55));
+const prof = (u) => (u >= 1 ? 0 : Math.pow(1 - Math.pow(u, 3.5), 0.55));
 
 /** height of the (undraped) body surface at (x, z), dummy-local; PAD where there is no body */
 function bodyY(x, z) {
@@ -47,7 +47,7 @@ function bodyY(x, z) {
 /** drape height (dummy-local) over the body; win = {cx, cy, cz, w, h} window (cy = skin level under the drape origin) */
 function drapeY(x, z, win, noise) {
   const az = Math.abs(z);
-  const lift = 0.1;                           // drape thickness + slack over skin
+  const lift = 0.13;                          // drape thickness + slack over skin
   let y = PAD + 0.03;
   // torso (with lateral slack: the sheet bridges from the flank down to the pad)
   if (x > -5.6 && x < 3.9) {
@@ -69,15 +69,15 @@ function drapeY(x, z, win, noise) {
   }
   // reinforced flat panel around the fenestration, blended into the contour
   const dx = Math.max(0, Math.abs(x - win.cx) - win.w / 2), dz = Math.max(0, Math.abs(z - win.cz) - win.h / 2), dist = Math.hypot(dx, dz);
-  const rimY = win.cy + 0.145, k = 1 - ss(0.3, 1.1, dist);
+  const rimY = win.cy + 0.145, k = 1 - ss(0.12, 0.75, dist);
   y = y * (1 - k) + rimY * k;
   // soft folds away from the window
   const n = noise(x * 0.55 + 3, z * 0.9 + 7), r1 = 1 - Math.abs(2 * n - 1);
   const n2 = noise(x * 0.22 + 11, z * 0.45 + 2), r2 = 1 - Math.abs(2 * n2 - 1);
   y += 0.07 * ss(0.2, 1.5, dist) * (r1 * r1 + 0.6 * r2 * r2);
   // hang over the table sides and the foot end
-  y = Math.min(y, Math.max(-4.2, y - 2.8 * ss(3.25, 3.85, az)));
-  y = Math.min(y, Math.max(-4.2, y - 2.8 * ss(11.0, 11.6, x)));
+  y = Math.max(-3.6, y - 2.6 * ss(3.25, 3.75, az) - 7 * Math.max(0, az - 3.6));
+  y = Math.max(-3.6, y - 2.6 * ss(11.0, 11.5, x) - 7 * Math.max(0, x - 11.35));
   // anaesthesia screen: sheet runs up from the chest, over the bar, and drops a little behind it
   const bx = win.bx, by = win.by + 0.06;
   if (x < bx + 1.25) {
@@ -180,7 +180,7 @@ export function makePatient() {
   const cap = new THREE.Mesh(new THREE.SphereGeometry(1.04, 36, 24, 0, Math.PI * 2, 0, Math.PI * 0.55), std('cap', 0x5f8fb6, { roughness: 0.95 }));
   cap.scale.set(1.0, 0.94, 0.8); cap.rotation.z = Math.PI / 2 + 0.35; cap.position.x = -0.12; head.add(cap);
   // endotracheal tube + tape (anaesthetised)
-  const ett = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(0.62, 0.82, 0.08), new THREE.Vector3(0.7, 1.3, 0.12), new THREE.Vector3(0.2, 1.75, 0.3), new THREE.Vector3(-0.8, 1.9, 0.6)]), 24, 0.06, 8),
+  const ett = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(0.62, 0.82, 0.08), new THREE.Vector3(0.7, 1.3, 0.12), new THREE.Vector3(0.2, 1.75, 0.3), new THREE.Vector3(-0.8, 1.9, 0.6)]), 24, 0.04, 8),
     std('ett', 0xe8eef2, { roughness: 0.25, transparent: true, opacity: 0.85 })); head.add(ett);
   const ring = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.18, 12, 28), std('gel', 0x2b6c86, { roughness: 0.35 })); ring.rotation.x = Math.PI / 2; ring.position.set(-6.6, 0.38, 0); g.add(ring);
   const neck = limb(new THREE.Vector3(-5.9, 0.95, 0), new THREE.Vector3(-4.8, 0.95, 0), 0.5, 0.55, skinMat()); neck.scale.set(1, 1, 1); g.add(neck);

@@ -120,7 +120,8 @@ export function makeDrape(w = 16, d = 12) { // flat-ish table drape (blue, gentl
 
 // ---------------------------------------------------------------- skin
 /** realistic (not hyper-real) skin albedo canvas for a w x h patch, with a soft povidone-iodine (Betadine) prep stain. */
-function skinCanvas(w, h, { prep = true, seed = 5, pxu = 170 } = {}) {
+function skinCanvas(w, h, o = {}) {
+  const { prep = true, seed = 5, pxu = 170 } = o;
   const W = Math.round(w * pxu), H = Math.round(h * pxu), c = canvas(W, H), g = c.getContext('2d'), r = rng(seed);
   g.fillStyle = '#d6a68c'; g.fillRect(0, 0, W, H);
   for (let i = 0; i < 70; i++) { // gentle tone variation
@@ -130,9 +131,9 @@ function skinCanvas(w, h, { prep = true, seed = 5, pxu = 170 } = {}) {
   }
   if (prep) { // Betadine: even orange-brown tint, gentle wipe variation, soft irregular border
     const mask = canvas(W, H), mg = mask.getContext('2d');
-    const rx = W * 0.47, ry = H * 0.47;
-    for (let i = 0; i < 90; i++) { // build an irregular soft-edged blob as the stain coverage
-      const a = r() * Math.PI * 2, rr = Math.sqrt(r()) * 0.82, x = W / 2 + Math.cos(a) * rr * rx, y = H / 2 + Math.sin(a) * rr * ry;
+    const rx = W * 0.5, ry = H * 0.5;
+    for (let i = 0; i < 110; i++) { // build an irregular soft-edged blob as the stain coverage
+      const a = r() * Math.PI * 2, rr = Math.sqrt(r()) * (o.prepCover ?? 0.92), x = W / 2 + Math.cos(a) * rr * rx, y = H / 2 + Math.sin(a) * rr * ry;
       const rad = Math.min(W, H) * (0.22 + r() * 0.18), gr = mg.createRadialGradient(x, y, rad * 0.5, x, y, rad);
       gr.addColorStop(0, 'rgba(0,0,0,0.9)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); mg.fillStyle = gr; mg.fillRect(x - rad, y - rad, rad * 2, rad * 2);
     }
@@ -144,7 +145,7 @@ function skinCanvas(w, h, { prep = true, seed = 5, pxu = 170 } = {}) {
       sg.beginPath(); sg.arc(x, y, rad, 0, Math.PI * 2); sg.stroke();
     }
     sg.globalCompositeOperation = 'destination-in'; sg.drawImage(mask, 0, 0);
-    g.globalAlpha = 0.5; g.drawImage(st, 0, 0); g.globalAlpha = 1;
+    g.globalAlpha = 0.42; g.drawImage(st, 0, 0); g.globalAlpha = 1;
   }
   return c;
 }
@@ -316,10 +317,10 @@ export function makeNeedleDriver() {
     for (let i = 0; i < pos.count; i++) { if (pos.getZ(i) < 0) { pos.setX(i, pos.getX(i) * 0.55); pos.setY(i, pos.getY(i) * 0.6); } }
     jg.computeVertexNormals();
     jaw.position.set(sgn * 0.015, 0, -pivotZ / 2);
-    const shank = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.07, 1.0), steel(0.28)); shank.position.set(sgn * 0.015, 0, 0.5);
+    const sg = new THREE.CylinderGeometry(0.026, 0.034, 1.0, 16); sg.rotateX(Math.PI / 2); sg.scale(0.8, 1.3, 1); const shank = new THREE.Mesh(sg, steel(0.24)); shank.position.set(sgn * 0.015, 0, 0.5);
     const ring = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.04, 12, 32), steel(0.25)); ring.rotation.x = Math.PI / 2; ring.scale.set(0.8, 1, 1.15);
     ring.position.set(sgn * 0.19, 0, 1.28);
-    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.04, 0.06), steel(0.28)); arm.position.set(sgn * 0.09, 0, 1.0); arm.rotation.y = sgn * -0.4;
+    const ag = new THREE.CapsuleGeometry(0.025, 0.14, 4, 12); ag.rotateZ(Math.PI / 2); const arm = new THREE.Mesh(ag, steel(0.24)); arm.position.set(sgn * 0.09, 0, 1.0); arm.rotation.y = sgn * -0.4;
     p.add(jaw, shank, ring, arm); p.userData.sgn = sgn; halves.push(p); g.add(p);
   }
   const lockA = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 0.35), steel(0.3)); lockA.position.set(0.05, 0.04, pivotZ + 0.65);
@@ -622,24 +623,39 @@ export function makeVitalsMonitor() {
  *  userData: {skinY, wound: {start,end (Vector3, on skin), center}, suturePairs:[{entry,exit}x3] (across the wound, z +-0.2), setClosed(t 0..1), bite(i) marks stitch i} */
 export function makeForearm() {
   const g = new THREE.Group(); g.name = 'Forearm';
-  const R = 0.9;
-  const arm = new THREE.CylinderGeometry(0.7, 0.95, 5, 40); arm.rotateZ(Math.PI / 2); // wrist at -? thin end at +X (hand)
-  const armSkin = makeSkinMaterial({ w: 5, h: 3, prep: true, repeat: 2 }); const m1 = new THREE.Mesh(arm, armSkin); m1.position.set(0, R * 0.9, 0); m1.scale.set(1, 0.9, 1); g.add(m1);
-  const hand = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.35, 1.2), skin()); hand.position.set(3.2, 0.5, 0); g.add(hand);
-  for (let i = 0; i < 4; i++) { const f = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.2, 0.22), skin()); f.position.set(4.2, 0.45, -0.45 + i * 0.3); g.add(f); }
-  const th = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.2, 0.25), skin()); th.position.set(3.5, 0.42, 0.75); th.rotation.y = -0.5; g.add(th);
-  const skinY = R * 0.9 + 0.95 * 0.9 * 0.97;
-  // laceration: pink-red gap + dark centre line; closed progressively
+  // forearm: lathe along X (elbow -X -> wrist +X), elliptical cross-section, rounded ends
+  const CY = 0.62, SY = 0.78, rad = (x) => 0.78 + (0.55 - 0.78) * sstep(-2.5, 2.4, x);
+  const prof = []; for (let i = 0; i <= 60; i++) { const x = -2.9 + 5.6 * i / 60; const cap = Math.sqrt(Math.max(0, Math.min(1, (x + 2.9) / 0.45, (2.7 - x) / 0.35))); prof.push(new THREE.Vector2(Math.max(0.001, rad(x) * (0.35 + 0.65 * cap)), x)); }
+  const arm = new THREE.LatheGeometry(prof, 48); arm.rotateZ(-Math.PI / 2); arm.scale(1, SY, 1);
+  const armSkin = makeSkinMaterial({ w: 5, h: 3, prep: true, repeat: 2 }); const m1 = new THREE.Mesh(arm, armSkin); m1.position.set(0, CY, 0); g.add(m1);
+  const hs = skin();
+  const palm = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 20), hs); palm.scale.set(0.6, 0.2, 0.5); palm.position.set(3.05, 0.3, 0); g.add(palm);
+  for (let i = 0; i < 4; i++) { const f = new THREE.Mesh(new THREE.CapsuleGeometry(0.075, 0.55 - Math.abs(i - 1.5) * 0.08, 6, 12), hs); f.rotation.z = Math.PI / 2 - 0.08; f.position.set(3.85 - Math.abs(i - 1.5) * 0.05, 0.18, -0.33 + i * 0.22); g.add(f); }
+  const th = new THREE.Mesh(new THREE.CapsuleGeometry(0.085, 0.4, 6, 12), hs); th.rotation.set(0, 0.7, Math.PI / 2); th.position.set(3.0, 0.25, 0.58); g.add(th);
+  const skinY = CY + rad(0) * SY;
   const start = new THREE.Vector3(-0.8, skinY, -0.05), end = new THREE.Vector3(0.8, skinY, 0.1);
   const len = start.distanceTo(end);
-  const woundMat = new THREE.MeshBasicMaterial({ color: 0x7a2e34 }), wound = new THREE.Mesh(new THREE.PlaneGeometry(len, 0.16), woundMat);
+  // laceration decal: jagged slit (dark core, parted pink-red edges) + faint bruise halo
+  const wc = canvas(512, 128), wg = wc.getContext('2d'), wr = rng(29);
+  const edgePts = (off) => { const pts = []; for (let i = 0; i <= 40; i++) { const t = i / 40, env = Math.sin(Math.PI * t) ** 0.6; pts.push([16 + t * 480, 64 + off * env * (14 + wr() * 7) + (wr() - 0.5) * 4]); } return pts; };
+  const top = edgePts(-1), bot = edgePts(1);
+  const poly = (fill) => { wg.beginPath(); top.forEach(([x, y], i) => (i ? wg.lineTo(x, y) : wg.moveTo(x, y))); [...bot].reverse().forEach(([x, y]) => wg.lineTo(x, y)); wg.closePath(); wg.fillStyle = fill; wg.fill(); };
+  wg.filter = 'blur(3px)'; poly('rgba(205,105,100,0.9)'); wg.filter = 'none';
+  wg.save(); wg.translate(256, 64); wg.scale(1, 0.62); wg.translate(-256, -64); poly('#8e2f34'); wg.restore();
+  wg.save(); wg.translate(256, 64); wg.scale(1, 0.25); wg.translate(-256, -64); poly('#4a1016'); wg.restore();
+  const wtex = texFromCanvas(wc);
+  const woundMat = new THREE.MeshStandardMaterial({ map: wtex, transparent: true, depthWrite: false, roughness: 0.3, metalness: 0, polygonOffset: true, polygonOffsetFactor: -2 });
+  const wound = new THREE.Mesh(new THREE.PlaneGeometry(len * 1.06, 0.3), woundMat);
   wound.rotation.x = -Math.PI / 2; wound.position.copy(start).lerp(end, 0.5); wound.position.y += 0.012; wound.rotation.z = -Math.atan2(end.z - start.z, end.x - start.x); g.add(wound);
-  const edge = new THREE.Mesh(new THREE.PlaneGeometry(len + 0.1, 0.3), new THREE.MeshBasicMaterial({ color: 0xd98a86, transparent: true, opacity: 0.6, depthWrite: false })); edge.rotation.copy(wound.rotation); edge.position.copy(wound.position); edge.position.y -= 0.004; g.add(edge);
+  const bc = canvas(256, 128), bg2 = bc.getContext('2d'), grd = bg2.createRadialGradient(128, 64, 10, 128, 64, 120); grd.addColorStop(0, 'rgba(170,80,80,0.35)'); grd.addColorStop(1, 'rgba(170,80,80,0)');
+  bg2.setTransform(2, 0, 0, 1, -128, 0); bg2.fillStyle = grd; bg2.fillRect(0, 0, 512, 128);
+  const edge = new THREE.Mesh(new THREE.PlaneGeometry(len + 0.5, 0.7), new THREE.MeshStandardMaterial({ map: texFromCanvas(bc), transparent: true, depthWrite: false, roughness: 0.55, polygonOffset: true, polygonOffsetFactor: -1 }));
+  edge.rotation.copy(wound.rotation); edge.position.copy(wound.position); edge.position.y -= 0.004; g.add(edge);
   const marks = [];
   const pairs = [0.2, 0.5, 0.8].map((t) => { const c = start.clone().lerp(end, t); return { entry: c.clone().add(new THREE.Vector3(0, 0, -0.22)), exit: c.clone().add(new THREE.Vector3(0, 0, 0.22)) }; });
-  pairs.forEach((p) => { for (const q of [p.entry, p.exit]) { const d = new THREE.Mesh(new THREE.CircleGeometry(0.045, 10), new THREE.MeshBasicMaterial({ color: 0x2a5ea8 })); d.rotation.x = -Math.PI / 2; d.position.copy(q); d.position.y += 0.015; g.add(d); } });
+  pairs.forEach((p) => { for (const q of [p.entry, p.exit]) { const d = new THREE.Mesh(new THREE.CircleGeometry(0.03, 20), new THREE.MeshStandardMaterial({ color: 0x5b3a9e, roughness: 0.5 })); d.rotation.x = -Math.PI / 2; d.position.copy(q); d.position.y += 0.015; g.add(d); } });
   g.userData = { skinY, wound: { start, end, center: start.clone().lerp(end, 0.5) }, suturePairs: pairs, kind: 'forearm',
-    setClosed(t) { wound.scale.y = Math.max(0.05, 1 - t); edge.scale.y = 1 - 0.5 * t; },
+    setClosed(t) { wound.scale.y = Math.max(0.12, 1 - t * 0.9); edge.material.opacity = 1 - 0.6 * t; },
     bite(i, color = 0x1a1d6e) { const p = pairs[i]; const s = tubeAlong([p.entry, p.entry.clone().lerp(p.exit, 0.5), p.exit].map((v) => v.clone().setY(skinY + 0.03)), 0.022, new THREE.MeshStandardMaterial({ color, roughness: 0.6 }), 5); g.add(s); marks.push(s); return s; } };
   g.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
   return g;
