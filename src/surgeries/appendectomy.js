@@ -5,6 +5,9 @@ import * as THREE from 'three';
 import { createSurgery, traceGuide, dragHandles, clickTargets, sutureBites, MM, botClick } from './steps.js';
 import { makeRing } from '../levels/_common.js';
 
+// ANATOMY's full abdominal set (optional): packed neighbouring organs behind the interactive appendix
+const anatomy = await import('../art/anatomy.js').catch((e) => { console.warn('[surgery] anatomy set unavailable', e.message); return null; });
+
 const ID = 'appendectomy';
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const flat = (color) => new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 0.85 });
@@ -72,13 +75,39 @@ export default {
     const setOpen = (t) => { openAmt = t; for (const h of halves) h.scale.z = Math.max(0.02, 1 - 0.8 * t); };
 
     // organs (centred in the window, under the skin)
-    let organ = call(art, 'makeOrgan', 'appendix');
-    if (organ && !organ.isObject3D) organ = organ.mesh;
     let apCurve = null; // world-space appendix centreline
     let arteryPts = null;
     let apMeshes = [];
+    // preferred: ANATOMY abdomen set centred on the RLQ (cecum + appendix in the window, liver/bowel/colon around)
+    let aset = null;
+    try {
+      if (anatomy && anatomy.makeAbdomenSet && dr && dr.mesh) {
+        aset = anatomy.makeAbdomenSet({ center: 'rlq', highlight: null, omentum: false });
+        aset.group.position.copy(dr.mesh.position); group.add(aset.group); aset.group.updateMatrixWorld(true);
+        const c = aset.parts.appendixCurve;
+        if (!c) throw new Error('no appendixCurve');
+        apCurve = new THREE.CatmullRomCurve3(c.getPoints(40).map((q) => aset.group.localToWorld(q.clone())));
+        if (aset.parts.appendix) apMeshes = [aset.parts.appendix];
+        // appendicular artery along the mesoappendix free edge: offset from the appendix toward the mesoappendix
+        let dir = V(0, 0, 1);
+        if (aset.parts.mesoappendix) {
+          const mc = new THREE.Box3().setFromObject(aset.parts.mesoappendix).getCenter(V(0, 0, 0));
+          const mid = apCurve.getPoint(0.5); dir = V(mc.x - mid.x, 0, mc.z - mid.z);
+          if (dir.lengthSq() < 1e-6) dir.set(0, 0, 1);
+          dir.normalize();
+        }
+        arteryPts = [];
+        for (let i = 0; i <= 20; i++) { const t = i / 20, q = apCurve.getPoint(t); arteryPts.push(q.clone().addScaledVector(dir, 0.13 * (1 - 0.6 * t)).setY(q.y + 0.005)); }
+        const vessel = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(arteryPts), 48, 0.011, 8), new THREE.MeshStandardMaterial({ color: 0xa8282c, roughness: 0.35 }));
+        aset.group.attach(vessel);
+        if (dr.cavity && dr.cavity.children[0]) dr.cavity.children[0].visible = false; // the set brings its own posterior wall
+      }
+    } catch (e) { console.warn('[surgery] abdomen set failed, using single organ', e); if (aset) aset.group.removeFromParent(); aset = null; apCurve = null; arteryPts = null; apMeshes = []; }
+    let organ = aset ? null : call(art, 'makeOrgan', 'appendix');
+    if (organ && !organ.isObject3D) organ = organ.mesh;
+    if (aset) organ = aset.group; // reveal/hide logic below treats the set as "the organ"
     const ORG_Y = cavityY + 0.02;
-    if (organ) {
+    if (organ && !aset) {
       group.add(organ);
       organ.position.set(C.x, ORG_Y, C.z);
       organ.updateMatrixWorld(true);
@@ -121,7 +150,7 @@ export default {
       arteryPts = apCurve.getPoints(20).map((p, i) => p.clone().add(V(0, -0.03, 0.28 * (1 - 0.7 * i / 20))));
       const art2 = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(arteryPts), 40, 0.015, 6), flat(0xb02e32)); group.add(art2);
     }
-    const AP_R = organ && organ.userData.curve ? 0.09 * organ.scale.y : 0.07;
+    const AP_R = aset ? 0.035 : organ && organ.userData.curve ? 0.09 * organ.scale.y : 0.07;
     const apTop = (t) => apCurve.getPoint(t).clone().add(V(0, AP_R, 0));
     const AP_Y = apCurve.getPoints(10).reduce((a, p) => a + p.y, 0) / 11 + AP_R; // work plane for steps on the appendix
     const arteryDist = (p) => { let best = Infinity; for (const q of arteryPts) best = Math.min(best, Math.hypot(p.x - q.x, p.z - q.z, (p.y - q.y) * 0.5)); return best; };
@@ -182,6 +211,7 @@ export default {
             onChange(ts) {
               const t = Math.min(1, (ts[0] + ts[1]) / 2);
               setOpen(t);
+              if (organ && t > 0.12) organ.visible = true; // organs lie below the skin; revealed as the edges part
               if (incMech && t > 0.1) incMech.group.visible = false;
             },
           });
@@ -317,7 +347,7 @@ export default {
       const mat = (apMeshes[0] && apMeshes[0].material) || flat(0xee9a90);
       const stumpPts = []; for (let i = 0; i <= 8; i++) stumpPts.push(apCurve.getPoint(0.3 * i / 8));
       const specPts = []; for (let i = 0; i <= 20; i++) specPts.push(apCurve.getPoint(0.34 + 0.66 * i / 20));
-      const r = organ ? 0.09 * organ.scale.x : 0.07;
+      const r = aset ? 0.055 : organ ? 0.09 * organ.scale.x : 0.07;
       const stump = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(stumpPts), 12, r, 10), mat);
       const specGeo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(specPts), 30, r, 10);
       const mid = specPts[10].clone(); specGeo.translate(-mid.x, -mid.y, -mid.z);
