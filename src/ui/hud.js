@@ -125,6 +125,13 @@ export function createHUD(root, engine) {
             <div class="sh-lbl">Controls</div><ul>${[].concat(d.controls || []).map(x => `<li>${esc(x)}</li>`).join('')}</ul>
             <div class="sh-lbl">Scoring</div><p>${esc(d.scoring || '')}</p></div>`).join('')}
         </div>
+        <div class="sh-grid3 drills surg">${SURGERIES.map(d => `
+          <div class="sh-box drill"><h3>${esc(d.title)} <small>${esc(d.skill || '')}</small></h3>
+            <div class="sh-lbl">Objective</div><p>${esc(d.objective)}</p>
+            <div class="sh-lbl">Controls</div><ul>${d.controls.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
+            <div class="sh-lbl">Scoring</div><p>${esc(d.scoring)}</p></div>`).join('')}
+          <div class="sh-box drill"><h3>Surgery banner</h3><ul><li>The top banner shows the current step, score and patient stability.</li><li>Clean work earns bonuses; mistakes raise the patient's heart rate.</li><li>Each surgery reuses the drill skills, so practise the drills first.</li></ul></div>
+        </div>
       </div>`;
     how.querySelector('[data-act=back]').onclick = () => show(title);
   }
