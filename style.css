@@ -82,3 +82,20 @@ kbd{font:600 13px Inter,sans-serif;border:1px solid var(--mut);border-radius:4px
 .sh-ui.surgery .sh-top,.sh-ui.surgery .sh-prog{display:none}
 
 .sh-camhint{opacity:.55;margin-right:14px;font-size:13px;letter-spacing:.02em}
+
+/* Trivia overlay (src/ui/trivia.js) */
+.sh-trivia{position:fixed;inset:0;z-index:50;background:rgba(9,14,16,.94);display:flex;align-items:center;justify-content:center;padding:32px;overflow:auto;font-size:18px;color:var(--ink)}
+.sh-tv{max-width:900px}
+.sh-tv .sh-kicker{margin-bottom:4px}
+.sh-tv-stats{display:flex;gap:24px;color:var(--mut);font-size:15px;margin-bottom:8px}.sh-tv-stats b{color:var(--accent);font-size:22px;margin-right:4px}
+.sh-tv-bar{height:6px;margin-bottom:20px}
+.sh-tv-q{font-size:26px;line-height:1.35;font-weight:600;margin:0 0 20px}
+.sh-tv-opts{display:grid;gap:10px;margin-bottom:16px}
+.sh-tv-opt{all:unset;box-sizing:border-box;cursor:pointer;display:flex;gap:14px;align-items:center;padding:14px 18px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.04);font-size:18px;line-height:1.35}
+.sh-tv-opt:hover:not(:disabled),.sh-tv-opt:focus-visible{border-color:var(--accent)}
+.sh-tv-opt:disabled{cursor:default}
+.sh-tv-opt.ok{border-color:var(--accent);background:rgba(62,197,181,.16)}
+.sh-tv-opt.bad{border-color:var(--err);background:rgba(229,88,79,.16)}
+.sh-tv-good{color:var(--accent)}.sh-tv-err{color:var(--err)}
+.sh-tv-rank{font-size:40px;margin-top:8px}
+.sh-card.trivia h2{font-size:30px}

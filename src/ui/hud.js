@@ -1,4 +1,6 @@
 // Steady Hands HUD: DOM overlay. createHUD(root, engine)
+const openTrivia = () => import('./trivia.js').then(m => m.openTrivia()).catch(e => console.warn('[trivia]', e));
+(function hookTrivia(n) { if (window.game) window.game.trivia = openTrivia; else if (n > 0) setTimeout(() => hookTrivia(n - 1), 250); })(80);
 const FALLBACK_DRILLS = [
   { id: 'incision', title: 'Incision', skill: 'Precision cutting', difficulty: 1,
     brief: 'Cut along the marked line on the tissue pad.',
@@ -119,9 +121,11 @@ export function createHUD(root, engine) {
           </button>`).join('')}
         </div>
         <button class="sh-btn ghost" data-act="how">How to play</button>
+        <button class="sh-btn" data-act="trivia" style="margin-left:12px">Trivia quiz</button>
       </div>`;
     title.querySelectorAll('.sh-card').forEach(b => b.onclick = () => startDrill(b.dataset.id));
     title.querySelector('[data-act=how]').onclick = () => show(how);
+    title.querySelector('[data-act=trivia]').onclick = openTrivia;
   }
   function renderHow() {
     const c = ['Mouse / trackpad to move the instrument.', 'Hold SHIFT for a steady breath: tremor drops, but your focus meter drains.', 'P or Esc pauses.', 'Camera: WASD pans, Q / E zoom out / in, hold the right mouse button and drag to orbit (mouse wheel zooms while right-dragging), C resets the view.'];
