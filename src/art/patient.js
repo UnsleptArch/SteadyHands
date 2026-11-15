@@ -26,11 +26,13 @@ const torsoTop = curve([[-5.3, 0.95], [-4.75, 1.25], [-4.3, 1.62], [-3.4, 1.98],
   [0.4, 1.76], [1.3, 1.66], [2.1, 1.5], [2.9, 1.15], [3.6, 0.6]]);
 const torsoHW = curve([[-5.3, 0.55], [-4.85, 0.62], [-4.45, 1.85], [-3.9, 2.08], [-3.0, 1.95], [-2.1, 1.72], [-1.2, 1.55], [NAVEL_X, 1.58],
   [0.6, 1.7], [1.5, 1.82], [2.3, 1.78], [3.1, 1.45], [3.6, 1.2]]);
-const legR = curve([[2.3, 0.72], [4.4, 0.62], [6.5, 0.46], [7.0, 0.45], [8.1, 0.44], [9.6, 0.27]]);
+const legR = curve([[2.3, 0.6], [3.2, 0.64], [4.4, 0.6], [6.5, 0.46], [7.0, 0.45], [8.1, 0.44], [9.6, 0.27]]);
 const legZ = curve([[2.3, 0.88], [6.6, 0.68], [9.8, 0.78]]);
 const TOE_X = 10.15, TOE_TOP = 2.05;
 // superellipse cross-section falloff: 1 on the centreline, 0 at the edge (flat back, rounded flanks)
 const prof = (u) => (u >= 1 ? 0 : Math.pow(1 - Math.pow(u, 3.5), 0.55));
+// draped falloff: same flat top, but the sheet eases onto the pad (no vertical flank)
+const dprof = (u) => 1 - ss(0.5, 1.0, u);
 
 /** height of the (undraped) body surface at (x, z), dummy-local; PAD where there is no body */
 function bodyY(x, z) {
@@ -51,13 +53,13 @@ function drapeY(x, z, win, noise) {
   let y = PAD + 0.03;
   // torso (with lateral slack: the sheet bridges from the flank down to the pad)
   if (x > -5.6 && x < 3.9) {
-    const hw = torsoHW(x) + 0.55;
-    y = Math.max(y, PAD + 0.03 + (torsoTop(x) + lift - PAD - 0.03) * Math.pow(prof(az / hw), 0.8));
+    const hw = torsoHW(x) + 0.7;
+    y = Math.max(y, PAD + 0.03 + (torsoTop(x) + lift - PAD - 0.03) * dprof(az / hw));
   }
   // legs + the sheet bridging the gap between them (sags a little)
   if (x > 2.0) {
     const r = legR(Math.min(x, 9.6)), zc = legZ(Math.min(x, 9.8)), top = PAD + 2 * r + lift;
-    const leg = PAD + 0.03 + (top - PAD - 0.03) * Math.pow(prof(Math.max(0, Math.abs(az - zc) - 0.05) / (r + 0.55)), 0.8);
+    const leg = PAD + 0.03 + (top - PAD - 0.03) * dprof(Math.max(0, Math.abs(az - zc) - 0.05) / (r + 0.6));
     const bridge = az < zc ? top - 0.22 * (1 - Math.pow(az / zc, 2)) * ss(2.6, 4.2, x) : 0;
     let legsY = Math.max(leg, bridge);
     // feet: toes point up and tent the sheet; it runs straight from the shins up to the toes, then drops off the end
@@ -65,7 +67,7 @@ function drapeY(x, z, win, noise) {
     const tent = x <= TOE_X ? PAD + 0.03 + (TOE_TOP - PAD) * Math.pow(ss(7.0, TOE_X, x), 1.35) * toeLat
       : PAD + 0.03 + (TOE_TOP - PAD) * (1 - ss(TOE_X, TOE_X + 0.9, x)) * toeLat;
     legsY = Math.max(legsY, tent);
-    y = Math.max(y, x < 3.9 ? Math.max(legsY * ss(2.0, 2.6, x), Math.min(legsY, y)) : legsY);
+    y = Math.max(y, x < 3.9 ? legsY : legsY);
   }
   // reinforced flat panel around the fenestration, blended into the contour
   const dx = Math.max(0, Math.abs(x - win.cx) - win.w / 2), dz = Math.max(0, Math.abs(z - win.cz) - win.h / 2), dist = Math.hypot(dx, dz);
@@ -76,7 +78,7 @@ function drapeY(x, z, win, noise) {
   const n2 = noise(x * 0.22 + 11, z * 0.45 + 2), r2 = 1 - Math.abs(2 * n2 - 1);
   y += 0.07 * ss(0.2, 1.5, dist) * (r1 * r1 + 0.6 * r2 * r2);
   // hang over the table sides and the foot end
-  y = Math.max(-3.6, y - 2.6 * ss(3.25, 3.75, az) - 7 * Math.max(0, az - 3.6));
+  y = Math.max(-3.6, y - 2.6 * ss(3.5, 3.95, az) - 7 * Math.max(0, az - 3.8));
   y = Math.max(-3.6, y - 2.6 * ss(11.0, 11.5, x) - 7 * Math.max(0, x - 11.35));
   // anaesthesia screen: sheet runs up from the chest, over the bar, and drops a little behind it
   const bx = win.bx, by = win.by + 0.06;
