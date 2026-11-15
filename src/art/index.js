@@ -392,7 +392,7 @@ export function makeLapBox(o = {}) {
   const g = new THREE.Group(); g.name = 'LapBox';
   const shell = blackMat();
   const floorTex = canvasTex(512, 512, (c, w, h) => { c.fillStyle = '#2b3034'; c.fillRect(0, 0, w, h); const r = rand(9);
-    for (let i = 0; i < 6000; i++) { c.fillStyle = `rgba(255,255,255,${r() * 0.05})`; c.fillRect(r() * w, r() * h, 2, 2); }
+    for (let i = 0; i < 6000; i++) { c.fillStyle = `rgba(255,255,255,${r() * 0.022})`; c.fillRect(r() * w, r() * h, 2, 2); }
     c.strokeStyle = 'rgba(200,215,225,0.10)'; c.lineWidth = 2; for (let i = 0; i <= 8; i++) { c.beginPath(); c.moveTo(i * w / 8, 0); c.lineTo(i * w / 8, h); c.moveTo(0, i * h / 8); c.lineTo(w, i * h / 8); c.stroke(); } });
   const floor = new THREE.Mesh(new THREE.BoxGeometry(W, t, Dp), new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.7 })); floor.position.y = -t / 2; g.add(floor);
   const box = (w, h, d, x, y, z, m = shell) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); g.add(b); return b; };
