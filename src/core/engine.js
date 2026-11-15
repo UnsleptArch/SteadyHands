@@ -229,7 +229,7 @@ export function createEngine(canvas, opts = {}) {
 
   let errCount = 0;
   renderer.setAnimationLoop(() => {
-    const dt = Math.min(clock.getDelta(), 0.05);
+    const dt = Math.min(clock.getDelta(), 0.1);
     const t = clock.elapsedTime;
     updateInput(engine.paused ? 0 : dt, t);
     const cur = engine.currentLevel;

@@ -18,7 +18,7 @@ with sync_playwright() as p:
         pg.wait_for_timeout(500)
         pg.screenshot(path=f"{OUT}_{lid}.png")
         try:
-            r = pg.evaluate(f"Promise.race([window.game.bot('{lid}'), new Promise(r=>setTimeout(()=>r('TIMEOUT'),60000))])")
+            r = pg.evaluate(f"Promise.race([window.game.bot('{lid}'), new Promise(r=>setTimeout(()=>r('TIMEOUT'),150000))])")
             print(lid, "bot", json.dumps(r)[:300])
         except Exception as e:
             print(lid, "bot EXC", e)

@@ -92,7 +92,7 @@ export function stubLevel(id) {
           const v = new THREE.Vector3();
           for (let x = x0 - 0.05; x <= x1 + 0.05 && engine.currentLevel?.controller === controller; x += 0.04) {
             engine.setBotPointer(v.set(x, Y, 0));
-            await new Promise((r) => setTimeout(r, 16));
+            await new Promise((r) => requestAnimationFrame(() => r()));
           }
           engine.setBotDown(false);
           engine.setBotPointer(null);
