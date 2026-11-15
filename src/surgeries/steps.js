@@ -181,6 +181,7 @@ export function createSurgery(cfg) {
     later(() => {
       controller._done = true;
       banner.clearSummary();
+      banner.el.style.transition = 'opacity .4s'; banner.el.style.opacity = '0';
       engine.emit('level:score', { id, metrics, grade });
     }, 4200);
   }
@@ -210,6 +211,7 @@ export function createSurgery(cfg) {
       else if (mech) {
         const done = mech.update(ev, dt);
         if (done) {
+          if (mech.group && !mech.keep) mech.group.visible = false;
           S.award(100, `Step ${idx + 1} complete`);
           vitals.good(0.05);
           transT = 1.2;
@@ -403,6 +405,7 @@ export function dragHandles(S, { handles, y, onChange, grabR = 0.16 }) {
       }
       return locked.every(Boolean);
     },
+    group: g,
     async bot(bot) {
       for (let i = 0; i < handles.length; i++) {
         const h = handles[i];
@@ -451,6 +454,7 @@ export function clickTargets(S, { targets, y, radius = 0.05, onHit, label = 'Cli
     },
     async bot(bot) { for (const p of targets) { await botClick(bot, p.clone().setY(y), 0.7); await bot.wait(0.25); } },
     dispose() {},
+    group: g,
   };
   return mech;
 }
@@ -483,7 +487,7 @@ export function sutureBites(S, { pairs, y, radius = 0.07, onStitch, color = 0x33
   const threadMat = new THREE.MeshStandardMaterial({ color, roughness: 0.55 });
   let i = 0, active = false, entryErr = 0;
   const mech = {
-    toolYaw: 0.5,
+    group: g, keep: true,
     frac: () => i / pairs.length,
     update(ev) {
       const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 210);
@@ -512,6 +516,7 @@ export function sutureBites(S, { pairs, y, radius = 0.07, onStitch, color = 0x33
             if (onStitch) onStitch(i, err);
             i++;
             S.setInstr(i < pairs.length ? `Stitch ${i + 1} of ${pairs.length}: press on the teal entry dot` : 'Wound closed');
+            if (i >= pairs.length) dots.forEach((d) => { d.a.visible = d.b.visible = d.ar.visible = false; });
           } else { S.m.retries++; S.error(0.3, 'Bite missed the exit mark — try again', 'miss'); }
         }
       }
@@ -552,6 +557,7 @@ export function holdTargets(S, { targets, y, radius = 0.06, holdT = 0.8, onDone,
   });
   let cur = -1;
   const mech = {
+    group: g, keep: true,
     frac: () => items.filter((it) => it.done).length / items.length,
     update(ev, dt) {
       const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 210);
@@ -653,6 +659,7 @@ export function dragDrop(S, { obj, target, y, radius = 0.12, label = 'Placed', o
   const home = obj.position.clone();
   let held = false, done = false;
   const mech = {
+    group: g,
     hideMarker: false,
     frac: () => (done ? 1 : held ? 0.5 : 0),
     update(ev) {

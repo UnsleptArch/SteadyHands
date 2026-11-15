@@ -142,7 +142,7 @@ export default {
         title: 'Mark & incise the right lower quadrant', tool: 'scalpel', plane: prepY,
         instr: 'Press on the green dot and draw the blade along the purple marker line. Hold SHIFT to steady.',
         cam: closeCam(0, 0.05, 2.3, 1.45),
-        start(S) { incMech = traceGuide(S, { pts: incPts, y: prepY + 0.006, tolMm: 4 }); return incMech; },
+        start(S) { incMech = traceGuide(S, { pts: incPts, y: prepY + 0.006, tolMm: 4 }); incMech.keep = true; return incMech; },
       },
       {
         title: 'Retract the wound edges', tool: null, plane: prepY + 0.04,
@@ -240,7 +240,7 @@ export default {
               const p = i === 0 ? arteryPts[Math.round(arteryPts.length * 0.15)] : apCurve.getPoint(0.2);
               const tan = i === 0 ? arteryPts[Math.round(arteryPts.length * 0.15) + 1].clone().sub(p) : apCurve.getTangent(0.2);
               const clip = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, i === 0 ? 0.12 : 0.24), clipMat);
-              clip.position.copy(p).add(V(0, 0.03, 0)); clip.rotation.y = Math.atan2(tan.x, tan.z) + Math.PI / 2; group.add(clip);
+              clip.position.copy(p).add(V(0, 0.03, 0)); clip.rotation.y = Math.atan2(tan.x, tan.z) + Math.PI / 2; group.add(clip); deep.push(clip);
               if (i === 0) S.info('Artery ligated');
             },
           });
@@ -272,6 +272,7 @@ export default {
         start(S) {
           retractors.forEach((r) => { r.visible = false; });
           if (organ) organ.visible = false;
+          deep.forEach((o) => { o.visible = false; });
           // ease the skin back together
           const t0 = performance.now(), from = openAmt;
           const tick = () => { if (disposedFlag) return; const u = Math.min(1, (performance.now() - t0) / 900); setOpen(from + (0.06 - from) * u); if (u < 1) requestAnimationFrame(tick); };
@@ -286,6 +287,7 @@ export default {
     ];
 
     let disposedFlag = false;
+    const deep = []; // clips + stump, hidden when the wound is closed
     function removeSpecimen(S) {
       // distal appendix lifts out into the specimen dish; a short stump remains
       const mat = (apMeshes[0] && apMeshes[0].material) || flat(0xee9a90);
@@ -298,7 +300,7 @@ export default {
       const spec = new THREE.Mesh(specGeo, mat); spec.position.copy(mid);
       const cap = new THREE.Mesh(new THREE.SphereGeometry(r, 10, 8), mat); cap.position.copy(specPts[20]).sub(mid); spec.add(cap);
       for (const m of apMeshes) m.visible = false;
-      group.add(stump, spec);
+      group.add(stump, spec); deep.push(stump);
       const dish = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.32, 0.12, 24, 1, true), new THREE.MeshStandardMaterial({ color: 0xc9d0d6, metalness: 0.8, roughness: 0.3, side: THREE.DoubleSide }));
       const dishPos = V(C.x + 2.0, prepY + 0.05, C.z + 1.6); dish.position.copy(dishPos); group.add(dish);
       const from = spec.position.clone(), t0 = performance.now();
