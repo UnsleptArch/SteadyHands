@@ -222,6 +222,128 @@ def follow(H, pg, secs, stop_cond, lag=0.15):
         if stop_cond(): return True
     return False
 
+
+# ---------------------------------------------------------------- central_line with REAL clicks / wheel / keys (bridge cannot test these)
+FIND_CL = """() => { const e=game.engine; const g=e.scene.children.find(c=>c.name&&c.name.startsWith('surgery-')); let probe=null, band=null;
+  g.traverse(o=>{ if(o.rotation&&o.rotation.order==='YZX'&&o.isGroup&&!probe) probe=o; if(o.isMesh&&o.geometry.type==='PlaneGeometry'&&o.geometry.parameters.width===0.14&&o.geometry.parameters.height===0.62) band=o; });
+  const wp=o=>o.getWorldPosition(new o.position.constructor()).toArray(); return {probe:wp(probe), band:wp(band)}; }"""
+TXT = "(k) => { const e=document.querySelector('.cvl-us [data-k='+k+']'); return e?e.textContent:''; }"
+VEIN_PX = """() => { const c=document.querySelector('.cvl-us canvas'); const x=c.getContext('2d'); const W=c.width,H=c.height; const d=x.getImageData(0,0,W,H).data;
+  const dark=new Uint8Array(W*H); for(let i=0;i<W*H;i++){ dark[i]=(d[i*4]+d[i*4+1]+d[i*4+2])/3<22?1:0; }
+  const seen=new Uint8Array(W*H); const blobs=[];
+  for(let y=0;y<H;y+=2)for(let xx=0;xx<W;xx+=2){ const i=y*W+xx; if(!dark[i]||seen[i]) continue; let st=[i],n=0,sx=0,sy=0; seen[i]=1;
+    while(st.length){ const j=st.pop(); n++; sx+=j%W; sy+=(j/W|0); for(const k of [j+1,j-1,j+W,j-W]){ if(k>=0&&k<W*H&&dark[k]&&!seen[k]){seen[k]=1;st.push(k);} } }
+    if(n>400) blobs.push({n:n,x:sx/n,y:sy/n}); }
+  blobs.sort((a,b)=>b.n-a.n); const r=c.getBoundingClientRect(); return {blobs:blobs.slice(0,4), rect:[r.left,r.top,r.width,r.height,W,H]}; }"""
+
+
+def cl_wait_step(pg, n, secs=20):
+    t0 = time.time()
+    while time.time() - t0 < secs:
+        b = banner(pg)
+        if b and b["pill"].startswith(f"{n}/") and not b["sum"]: return True
+        pg.wait_for_timeout(150)
+    return False
+
+
+def cl_step_is(pg, n):
+    b = banner(pg); return bool(b) and b["pill"].startswith(f"{n}/")
+
+
+def num(txt):
+    import re
+    m = re.search(r"-?\d+(\.\d+)?", txt or ""); return float(m.group()) if m else None
+
+
+def play_cl(H, pg, rng, rec, sid, attempt):
+    step_t = {}
+    def mark(n): step_t[n] = time.time()
+    # step 1 -------------------------------------------------
+    cl_wait_step(pg, 1); pg.wait_for_timeout(int(rng.uniform(2500, 4000))); mark(1)
+    for i in range(4):  # tick checklist in order with real clicks
+        bb = pg.evaluate("(i)=>{const b=document.querySelectorAll('.cvl-ck button')[i].getBoundingClientRect();return [b.left+b.width/2,b.top+b.height/2]}", i)
+        H.move_px(bb[0] + rng.uniform(-30, 30), bb[1] + rng.uniform(-6, 6)); H.pause(0.15, 0.3); H.press(); time.sleep(0.09); H.release(); H.pause(0.3, 0.6)
+    pg.wait_for_timeout(1000)
+    o = pg.evaluate(FIND_CL)
+    H.goto(o["probe"][0], o["probe"][2], y=o["probe"][1], fine=False); H.press(); H.pause(0.1, 0.2)
+    H.drag_world([(o["band"][0], o["band"][2])], y=o["probe"][1], speed=0.8); H.pause(0.15, 0.3); H.release(); H.pause(0.3, 0.5)
+    for _ in range(40):  # scroll to rotate until label reads within +-10 deg
+        tag = pg.evaluate(TXT, "tag"); d = num(tag.replace("Probe", "")) if "Probe" in tag else None
+        if d is not None and abs(d) <= 7: break
+        pg.mouse.wheel(0, -100 if (d is None or d > 0) else 100); pg.wait_for_timeout(120)
+    pg.wait_for_timeout(1500)
+    # step 2 -------------------------------------------------
+    if not cl_wait_step(pg, 2, 8): return "step1 did not complete (probe on band + 0 deg). tag=" + pg.evaluate(TXT, "tag") + " instr=" + banner(pg)["instr"]
+    mark(2); pg.wait_for_timeout(int(rng.uniform(2500, 4000)))
+    H.pause(0.2, 0.4); H.press(); dwell(H, 1.5); H.release(); H.pause(0.3, 0.6)
+    v = pg.evaluate(VEIN_PX)
+    if not v["blobs"]: return "no dark vessel blobs found in ultrasound canvas"
+    big = v["blobs"][0]  # vein = larger oval
+    L, T, Wd, Ht, cw, ch = v["rect"]
+    H.move_px(L + big["x"] / cw * Wd, T + big["y"] / ch * Ht); H.pause(0.2, 0.4); H.press(); time.sleep(0.08); H.release()
+    pg.wait_for_timeout(1500)
+    # step 3 -------------------------------------------------
+    if not cl_wait_step(pg, 3, 8): return "step2 not completed after clicking the largest dark oval: blobs=%s banner=%s" % (v["blobs"], banner(pg)["instr"])
+    mark(3); pg.wait_for_timeout(int(rng.uniform(2500, 4000)))
+    o = pg.evaluate(FIND_CL)
+    H.goto(o["probe"][0] - 0.13, o["band"][2] + 0.06, y=o["probe"][1], fine=True)
+    for _ in range(30):
+        ang = num(pg.evaluate(TXT, "ang").replace("NEEDLE", "")) if "NEEDLE" in pg.evaluate(TXT, "ang") else None
+        if ang is None or abs(ang - 45) <= 6: break
+        pg.mouse.wheel(0, -100 if ang < 45 else 100); pg.wait_for_timeout(100)
+    H.pause(0.3, 0.6); H.press(); t0 = time.time(); key = None; last_tag = ""; flips = 0
+    while time.time() - t0 < 45 and cl_step_is(pg, 3):
+        tag = pg.evaluate(TXT, "tag")
+        print("   needle:", pg.evaluate(TXT, "ang"), tag, flush=True)
+        if "out of plane" in tag or "Aim" in tag and False:
+            key = key or "d"
+            pg.keyboard.down(key.upper()); dwell(H, 0.25); pg.keyboard.up(key.upper()); H.pause(0.15, 0.3)
+            tag2 = pg.evaluate(TXT, "tag")
+            if "out of plane" in tag2: flips += 1; key = "a" if key == "d" else "d"
+        else: dwell(H, 0.2)
+        if (banner(pg)["instr"] or "").startswith("Withdraw"):
+            H.release(); pg.keyboard.down("Space"); dwell(H, 1.5); pg.keyboard.up("Space"); H.press()
+    H.release(); pg.wait_for_timeout(1500)
+    # step 4 -------------------------------------------------
+    if not cl_wait_step(pg, 4, 8): return "step3 (needle) not completed in 45 s; tag=%s instr=%s" % (pg.evaluate(TXT, "tag"), banner(pg)["instr"])
+    mark(4); pg.wait_for_timeout(int(rng.uniform(2500, 4000)))
+    pg.keyboard.down("Shift"); H.press(); H.pause(0.2, 0.3)
+    w0 = H.world(); z = w0[2]; pressed_e = False; t0 = time.time()
+    while time.time() - t0 < 40 and cl_step_is(pg, 4):
+        g = num(pg.evaluate(TXT, "gval")) or 0
+        if g >= 10 and not pressed_e: pg.keyboard.press("e"); pressed_e = True; dwell(H, 1.0); continue
+        if g < 14: z += 0.02
+        elif g > 17.5: z -= 0.01
+        px, py = H.w2s(w0[0], z, w0[1]); H._seg(H.mx, H.my, px, py, 0.18)
+        dwell(H, 0.05)
+    H.release(); pg.keyboard.up("Shift"); pg.wait_for_timeout(1500)
+    # step 5 -------------------------------------------------
+    if not cl_wait_step(pg, 5, 8): return "step4 (guidewire) not completed; gauge=%s instr=%s" % (pg.evaluate(TXT, "gval"), banner(pg)["instr"])
+    mark(5); pg.wait_for_timeout(int(rng.uniform(2500, 4000)))
+    w0 = H.world(); H.press(); z = w0[2]
+    for _ in range(40):
+        g = num(pg.evaluate(TXT, "gval")) or 0
+        if g >= 17: break
+        z += 0.03; px, py = H.w2s(w0[0], z, w0[1]); H._seg(H.mx, H.my, px, py, 0.15)
+    H.release(); H.pause(0.4, 0.7)
+    for _ in range(60):
+        g = num(pg.evaluate(TXT, "gval")) or 0
+        if 14.8 <= g <= 16.5: break
+        pg.mouse.wheel(0, -300 if g < 14.8 else 100); pg.wait_for_timeout(110)
+    H.pause(0.3, 0.5); H.press(); time.sleep(0.08); H.release(); H.pause(0.5, 0.8)
+    w0 = H.world(); H.press(); z = w0[2]
+    for _ in range(100):  # keep dragging up (wire clamps at 0 cm) until the flush button appears
+        if pg.evaluate("()=>{const b=document.querySelector('.cvl-us [data-k=btn]');return !!(b&&b.offsetParent)}"): break
+        z -= 0.02; px, py = H.w2s(w0[0], z, w0[1]); H._seg(H.mx, max(20, py), px, max(20, py), 0.12) if False else H._seg(H.mx, H.my, px, py, 0.12)
+        if py < 40: z = w0[2]; H.release(); H.pause(0.2, 0.3); H.goto(w0[0], w0[2], fine=False); H.press()
+    H.release(); H.pause(0.5, 0.8)
+    bb = pg.evaluate("()=>{const b=document.querySelector('.cvl-us [data-k=btn]'); if(!b||!b.offsetParent) return null; const r=b.getBoundingClientRect(); return [r.left+r.width/2,r.top+r.height/2,r.bottom]}")
+    if not bb: return "flush button not shown after wire out. instr=" + banner(pg)["instr"]
+    pg.screenshot(path=f"{OUT}/{sid}_a{attempt+1}_s5_flush.png")
+    if bb[2] > 720: rec.setdefault("notes", []).append(f"flush button bottom at y={bb[2]:.0f} > viewport 720 (clipped)")
+    H.move_px(bb[0], min(bb[1], 712)); H.pause(0.2, 0.3); H.press(); time.sleep(0.08); H.release()
+    return None
+
 def play(pg, sid, attempt, seed, results):
     rng = random.Random(seed)
     noise = rng.uniform(3, 6); speed = rng.uniform(1.2, 2.0)
@@ -237,7 +359,11 @@ def play(pg, sid, attempt, seed, results):
     rec = {"surgery": sid, "attempt": attempt + 1, "noise_px": round(noise, 1), "speed": round(speed, 2), "shift": use_shift, "steps": [], "softlock": None}
     t_start = time.time()
     nsteps = int(banner(pg)["pill"].split("/")[1])
-    if sid in BRIDGE_IDS:
+    if sid == "central_line" and os.environ.get("REAL_CL", "1") == "1":
+        err = play_cl(H, pg, rng, rec, sid, attempt)
+        if err: rec["softlock"] = err; pg.screenshot(path=f"{OUT}/{sid}_a{attempt+1}_SOFTLOCK.png"); print("  CL stop:", err, flush=True)
+        nsteps = 0
+    elif sid in BRIDGE_IDS:
         print("  bridge mode (follow reference pointer path), steps:", nsteps, flush=True)
         pg.evaluate(BRIDGE)
         res_up = lambda: pg.evaluate("() => !!document.querySelector('.sh-panel.results') && !document.querySelector('.sh-panel.results').closest('.hidden')")
@@ -258,6 +384,7 @@ def play(pg, sid, attempt, seed, results):
             return res_up()
         last_title = [""]
         follow(H, pg, 420, stop)
+        if last_pill: rec["steps"].append({"i": last_pill, "title": last_title[0], "sec": round(time.time() - last_t, 1)})
         nsteps = 0
     for si in range(nsteps):
         t0 = time.time()
