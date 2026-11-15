@@ -29,7 +29,7 @@ chest_tube when not placeholders] -> title. Page load is trimmed; output is H.26
 ## Final video pipeline (what was actually used, 2026-11-15)
 Everything ran on linux3 in `~/sh-final`. The scripts are copied into `video/`.
 1. **Takes:** `scripts/record_demo.py takes/<id>.mp4 --only <id>`, one per level (Vulkan + `?safe=1&democursor=1`, 1080p60). The laceration bot stalled and was left out.
-2. **Voiceover:** phone recording, pulled over adb, then `ffmpeg -vn -ac 1` and transcribed with faster-whisper small.en (word timestamps, `video/tr`).
+2. **Voiceover:** phone recording, pulled over adb, then `ffmpeg -vn -ac 1` and transcribed with faster-whisper small.en (word timestamps, `video/tr.py`).
 3. **`video/build.py`:** cuts retakes and spoken section names using the word times (`SEG`), adds 0.28 s gaps, then highpass, noise reduction, compressor, `atempo` (1.19×, to fit 3:00) and loudnorm to -16 LUFS. Writes `vo_final.wav` and `vo_meta.json` (section start times).
 4. **`video/vbuild.py`:** fills each section with gameplay chunks inside a bordered frame, adds green JetBrains Mono section titles in the GT/Core Dumped style, a vignette and grain, an end card, and Masked Dedede quiet under the voice (not committed, for copyright).
 5. **`video/subs.py`:** writes the SRT from the word timings, mapped through the cuts and tempo, with mishearings corrected to the script. **`video/burn.py`** burns it in with libass.
