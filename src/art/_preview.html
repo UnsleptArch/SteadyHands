@@ -1,0 +1,29 @@
+<!doctype html><meta charset="utf-8"><style>body{margin:0;background:#000}canvas{display:block}</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import * as A from './index.js';
+const r=new THREE.WebGLRenderer({antialias:true});r.setSize(innerWidth,innerHeight);r.shadowMap.enabled=true;r.shadowMap.type=THREE.PCFSoftShadowMap;
+r.toneMapping=THREE.ACESFilmicToneMapping;r.toneMappingExposure=1.1;document.body.append(r.domElement);
+const q=new URLSearchParams(location.search).get('v')||'a';
+const s=new THREE.Scene();A.makeORLights(s);
+const cam=new THREE.PerspectiveCamera(40,innerWidth/innerHeight,.1,100);
+if(q==='a'){
+ const pad=A.makeTissuePad();s.add(pad);const y=pad.userData.surfaceY;
+ const d=A.incisionDecal(pad);const pts=[];for(let i=0;i<=40;i++){const t=i/40;pts.push({x:-2.2+4.4*t,z:Math.sin(t*6)*0.4});}
+ d.setGuide(pts);pts.slice(0,28).forEach((p,i)=>d.addPoint(p.x,p.z+0.02*Math.sin(i),0.3+i/40));
+ d.addMark(1.5,1,{});d.addMark(1.9,1.0,{color:'#c0392b'});d.flash(0.5,-1);
+ const sc=A.makeScalpel();sc.position.set(pts[28].x,y+0.02,pts[28].z);sc.rotation.x=0.5;s.add(sc);
+ const nd=A.makeNeedleDriver();nd.position.set(1.7,y+0.5,0.8);nd.rotation.x=0.6;nd.setOpen(.5);s.add(nd);
+ const nn=A.makeCurvedNeedle();nn.position.set(1.4,y+0.01,1.2);nn.setThread([{x:1,y:.01,z:1.6},{x:0.6,y:.01,z:1.4}]);s.add(nn);
+ cam.position.set(0.5,6,5.5);cam.lookAt(0,0,0);
+}else{
+ const b=A.makeLapBox();s.add(b);
+ const gr=A.makeGrasper();const p=b.userData.port;gr.position.set(-0.6,0.6,0.4);gr.lookAt(p.x,p.y,p.z);s.add(gr);
+ [['yellow',-1.5,-.5],['red',-1,.5],['green',1.2,-.2]].forEach(([c,x,z])=>{const pg=A.makePeg(c);pg.position.set(x,0,z);s.add(pg);});
+ const po=A.makePost('blue');po.position.set(1.8,0,0.5);s.add(po);
+ s.add(A.makeVessel([{x:-2,y:.05,z:-1},{x:-.5,y:.05,z:-.4},{x:.6,y:.05,z:-1},{x:2,y:.05,z:-.6}]));
+ cam.position.set(0,3.6,8);cam.lookAt(0,1.2,0);
+}
+r.render(s,cam);r.render(s,cam);window.done=true;
+</script>
