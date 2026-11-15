@@ -25,7 +25,9 @@ HOOK_JS = r"""
     if (!down && last && last[0] === 'm') last[1] = p; else q.push(['m', p]);
   };
   E.setBotDown = (b) => { const d = !!b; if (d !== down) { down = d; q.push([d ? 'd' : 'u']); } };
+  let frames = 0; const tick = () => { frames++; requestAnimationFrame(tick); }; requestAnimationFrame(tick);
   E.__demo = {
+    frames: () => [frames, performance.now()],
     drain() {
       const r = E.renderer.domElement.getBoundingClientRect(), out = [];
       E.camera.updateMatrixWorld();
@@ -48,6 +50,7 @@ class DemoBot:
         self.pg = page
         self.x, self.y = 960.0, 600.0
         self.down = False
+        self._t_down = 0.0
         self.steady = steady
         self.rnd = random.Random(seed)
 
@@ -120,6 +123,12 @@ class DemoBot:
         if on == self.down:
             return
         self.down = on
+        if not on:  # a click must last a few frames or the game loop never sees the button down
+            held = time.perf_counter() - self._t_down
+            if held < 0.09:
+                time.sleep(0.09 - held)
+        else:
+            self._t_down = time.perf_counter()
         if on:
             if self.steady:
                 self.pg.keyboard.down("Shift")
@@ -138,6 +147,7 @@ class DemoBot:
           const c = window.game.engine.currentLevel && window.game.engine.currentLevel.controller;
           Promise.resolve(c && c.autoplay ? c.autoplay() : null).catch(e => console.error(e))
             .finally(() => { window.__demoDone = true; }); }""")
+        f0 = self.pg.evaluate("window.game.engine.__demo.frames()")
         t0 = time.time()
         done = False
         t_log = t0
@@ -180,7 +190,9 @@ class DemoBot:
             time.sleep(0.004)
         self._press(False)
         st = self.pg.evaluate("window.game.state()") or {}
+        f1 = self.pg.evaluate("window.game.engine.__demo.frames()")
+        fps = round((f1[0] - f0[0]) / max(1e-3, (f1[1] - f0[1]) / 1000), 1)
         g = st.get("grade") or {}
         return {"letter": g.get("letter") if isinstance(g, dict) else g,
                 "overall": g.get("overall") if isinstance(g, dict) else None,
-                "metrics": st.get("metrics"), "secs": round(time.time() - t0, 1), "error": st.get("error")}
+                "metrics": st.get("metrics"), "secs": round(time.time() - t0, 1), "fps": fps, "error": st.get("error")}

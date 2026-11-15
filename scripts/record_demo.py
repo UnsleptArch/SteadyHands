@@ -91,7 +91,7 @@ def main():
             r = bot.play_current()
             r["id"] = lid
             report.append(r)
-            print(f"{lid}: grade {r['letter']} ({r['overall']}) in {r['secs']} s  metrics={json.dumps(r['metrics'])[:220]}")
+            print(f"{lid}: grade {r['letter']} ({r['overall']}) in {r['secs']} s @ {r['fps']} fps  metrics={json.dumps(r['metrics'])[:220]}")
             pg.wait_for_timeout(int(a.results_secs * 1000))
             if full:
                 btn = visible(pg, "[data-a=menu]")
@@ -117,7 +117,7 @@ def main():
         dur = [ln.strip() for ln in r.splitlines() if "Duration" in ln]
         print(dur[0].split(",")[0] if dur else "", f"| size {pathlib.Path(a.out).stat().st_size / 1e6:.1f} MB"
               f" | trimmed {trim:.1f}s lead-in")
-    print("GRADES:", ", ".join(f"{r['id']}={r['letter']}" for r in report))
+    print("GRADES:", ", ".join(f"{r['id']}={r['letter']}({r['fps']}fps)" for r in report))
     shutil.rmtree(tmp, ignore_errors=True)
 
 
