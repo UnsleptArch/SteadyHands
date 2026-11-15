@@ -148,13 +148,13 @@ export default {
       {
         title: 'Retract the wound edges', tool: null, plane: prepY + 0.04,
         instr: 'Grab each white handle ring and pull the retractor out to its teal target.',
-        cam: closeCam(0, 0.05, 2.9, 1.25),
+        cam: { pos: [C.x + 0.15, prepY + 3.0, C.z + 1.3], target: [C.x, prepY - 0.05, C.z + 0.03] },
         start(S) {
           const y = prepY + 0.04;
           retractors.forEach((r) => { r.visible = true; });
           const handles = retractors.map((r) => {
             const s = r.userData.s;
-            return { obj: r, from: V(C.x, y, C.z + s * 0.05), to: V(C.x, y, C.z + s * (WIN_H / 2 - 0.25)) };
+            return { obj: r, from: V(C.x, y, C.z + s * 0.05), to: V(C.x, y, C.z + s * (WIN_H / 2 - 0.45)) };
           });
           return dragHandles(S, {
             handles, y,
