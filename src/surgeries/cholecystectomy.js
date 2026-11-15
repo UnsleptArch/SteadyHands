@@ -148,6 +148,19 @@ export default {
       b.scale.set(0.14, 0.06, 0.12); b.position.set(x, -0.04, z); cav.add(b);
     }
     cav.add(tubeAlong(new THREE.CatmullRomCurve3([V(0.55, -0.02, 1.2), V(0.75, -0.0, 0.62), V(1.05, -0.02, 0.3), V(1.5, -0.04, 0.2)]), 0.16, wet(0xd59a86, 0.4), 40, 18)); // duodenum
+    // shared ANATOMY set (stomach, bowel, colon, omentum) as the surrounding field, if available; our own interactive
+    // liver/gallbladder/ducts stay on top. Patient frame (head -X, right +Z) -> lap view (head = screen top, right = screen left).
+    const decor = cav.children.slice(2); // omentum blobs + duodenum (fallback scenery)
+    let anatomySet = null, disposedA = false;
+    import('../art/anatomy.js').then((m) => {
+      if (disposedA || !m || typeof m.makeAbdomenSet !== 'function') return;
+      const set = m.makeAbdomenSet({ center: 'gallbladder', omentum: true, highlight: null });
+      for (const k of ['gallbladder', 'liver']) if (set.parts[k]) set.parts[k].visible = false;
+      set.group.rotation.y = -Math.PI / 2; set.group.position.set(-0.3, -0.14, -0.05);
+      cav.add(set.group); anatomySet = set;
+      for (const d of decor) d.visible = false;
+      floor.position.y = -0.4;
+    }).catch((e) => console.warn('[chole] anatomy set unavailable', e && e.message));
     // liver (right lobe, underside edge toward the camera)
     const liverGeo = new THREE.SphereGeometry(1, 56, 30);
     { const pa = liverGeo.attributes.position; for (let i = 0; i < pa.count; i++) { const x = pa.getX(i), y = pa.getY(i), z = pa.getZ(i); pa.setY(i, y > 0 ? y : y * 0.35); pa.setZ(i, z + 0.08 * Math.sin(x * 3)); } liverGeo.computeVertexNormals(); }
@@ -464,7 +477,7 @@ export default {
         instr: 'Hook cautery: hold the button and sweep SLOWLY over the yellow fat. Clear the triangle and the lower third of the gallbladder. Keep off the ducts.',
         start(S) {
           ui.tool('Hook cautery (right port)');
-          const total = globs.length; let cleared = 0, fastT = -9, fastN = 0, ductT = 0, burnArmed = true, lastTip = null, strandDone = strands.map(() => false), errors0 = S.m.tissueErrors;
+          const total = globs.length; let spd = 0, cleared = 0, fastT = -9, fastN = 0, ductT = 0, burnArmed = true, lastTip = null, strandDone = strands.map(() => false), errors0 = S.m.tissueErrors;
           const tip = V(0, PLANE, 0);
           const ductCurves = [cbdCurve, finDuct];
           return {
@@ -477,9 +490,9 @@ export default {
               pose(hook, t3, PORT_R, 0);
               showRings(local(ev.p), ev.down ? null : tip);
               fatMat.emissive.setRGB(0.09 + 0.06 * Math.sin(performance.now() / 260), 0.06, 0);
-              const speed = lastTip && dt > 0 ? dXZ(tip, lastTip) / dt : 0; lastTip = tip.clone();
+              if (lastTip && dt > 0.004) spd += (dXZ(tip, lastTip) / dt - spd) * Math.min(1, dt * 6); lastTip = tip.clone(); const speed = spd;
               if (ev.down) {
-                if (speed > 0.9) {
+                if (speed > 1.1) {
                   if (S.time - fastT > 0.6) { fastN = S.time - fastT < 3 ? fastN + 1 : 1; fastT = S.time;
                     if (fastN >= 2) { S.error(0.35, 'Small bleed: too fast, heat spreads. Slow down'); fastN = 0; } else S.warn('Too fast — slow, controlled strokes'); }
                 } else {
@@ -725,14 +738,14 @@ export default {
                 portRing.position.copy(portP()).setY(PLANE + 0.004); portRing.material.opacity = 0.45 + 0.4 * Math.sin(performance.now() / 200);
                 const grabP = () => planeHit(spec.localToWorld(st.N.clone().lerp(st.F, 0.15)).sub(CAV));
                 if (ev.pressed && !held) {
-                  if (dXZ(tip, grabP()) < 0.14) { held = true; grabOff = spec.position.clone().sub(V(tip.x, 0, tip.z)); }
+                  if (dXZ(tip, grabP()) < 0.2) { held = true; grabOff = spec.position.clone().sub(V(tip.x, 0, tip.z)); }
                   else { S.m.missedActions++; S.setInstr('Line the jaws up on the gallbladder neck, then hold'); }
                 }
                 if (held && ev.down) {
                   spec.position.set(tip.x + grabOff.x, specHome.y + 0.12, tip.z + grabOff.z);
                 } else if (held && !ev.down) {
                   held = false;
-                  if (dXZ(grabP(), portP()) < 0.16) { phase = 'anim'; anim = 0; S.award(150, 'Specimen extracted'); }
+                  if (dXZ(tip, portP()) < 0.2 || dXZ(grabP(), portP()) < 0.18) { phase = 'anim'; anim = 0; S.award(150, 'Specimen extracted'); }
                   else { S.m.retries++; S.setInstr('Drag it all the way into the port ring before releasing'); spec.position.copy(specHome); }
                 }
                 pose(graspR, held ? rayAt(tip, specHome.y + 0.2) : t3, PORT_R, held ? 0.02 : 0.5);
@@ -791,6 +804,7 @@ export default {
         const ph = (controller.S.time * hr / 60) % 1;
         artMat.emissive.setRGB(Math.max(0, 0.12 * Math.sin(ph * Math.PI * 2)) + (artMat.emissive.g > 0.1 ? 0.18 : 0), artMat.emissive.g, artMat.emissive.b);
       }
+      if (anatomySet && anatomySet.update) { try { anatomySet.update(controller.S.time); } catch { /* decorative */ } }
       // fat shrink + steam puffs
       let changed = false;
       for (const g of globs) if (g.cleared && g.scale > 0) { g.scale = Math.max(0, g.scale - dt * 4); changed = true; }
@@ -801,6 +815,7 @@ export default {
       }
     };
     controller.dispose = () => {
+      disposedA = true;
       setLap(false);
       ov.remove(); css.remove();
       baseDispose();
