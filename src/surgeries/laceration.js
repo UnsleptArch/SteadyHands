@@ -57,7 +57,7 @@ export default {
     const core = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.03, 0.36), flat(0xffffff)); core.position.y = 0.012; dressing.add(core);
     dressing.position.set(W.x + 0.55, skinY - 0.02, trayZ); dressing.rotation.y = -Math.atan2(dir.z, dir.x); group.add(dressing);
 
-    const closeCam = (h = 3.0, back = 2.5) => ({ pos: [W.x + 0.2, skinY + h, W.z + back], target: [W.x, skinY - 0.1, W.z + 0.15] });
+    const closeCam = (h = 3.0, back = 2.5) => ({ pos: [W.x + 0.2, skinY + h, W.z + back], target: [W.x, skinY - 0.1, W.z + 0.3] });
 
     const steps = [
       {

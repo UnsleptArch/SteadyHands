@@ -133,7 +133,8 @@ export default {
     for (let i = 0; i <= 30; i++) { const u = i / 30; incPts.push(V(C.x - INC_L / 2 + INC_L * u, prepY, C.z + 0.02 * Math.sin(u * Math.PI))); }
     let incMech = null;
 
-    const closeCam = (dx = 0, dz = 0, h = 3.0, back = 2.4) => ({ pos: [C.x + dx + 0.15, prepY + h, C.z + dz + back], target: [C.x + dx, prepY - 0.05, C.z + dz] });
+    // framing keeps the action in the upper ~70% of the screen (HUD hint + focus meter sit at the bottom)
+    const closeCam = (dx = 0, dz = 0, h = 3.0, back = 2.4) => ({ pos: [C.x + dx + 0.15, prepY + h, C.z + dz + back + 0.25 * h / 2], target: [C.x + dx, prepY - 0.05, C.z + dz + 0.25 * h / 2] });
     const tipFocus = apTop(0.6);
 
     // ---------------- steps ----------------
@@ -147,7 +148,7 @@ export default {
       {
         title: 'Retract the wound edges', tool: null, plane: prepY + 0.04,
         instr: 'Grab each white handle ring and pull the retractor out to its teal target.',
-        cam: closeCam(0, 0.05, 2.3, 1.45),
+        cam: closeCam(0, 0.05, 2.9, 1.25),
         start(S) {
           const y = prepY + 0.04;
           retractors.forEach((r) => { r.visible = true; });
