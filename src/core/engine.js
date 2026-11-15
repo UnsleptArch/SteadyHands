@@ -126,6 +126,7 @@ export function createEngine(canvas, opts = {}) {
     paused: false,
     tremorScale: 1,
     botNoTremor: false,
+    menuDrift: true,
     status: { level: null, progress: 0, hint: '', metrics: null, grade: null, done: false, error: null },
     onTick(fn) { tickFns.add(fn); return () => tickFns.delete(fn); },
     emit(type, detail = {}) { events.dispatchEvent(new CustomEvent(type, { detail })); },
@@ -241,6 +242,12 @@ export function createEngine(canvas, opts = {}) {
       catch (err) {
         if (errCount++ < 3) { console.error('[core] level update error', err); showError(`Level error: ${err.message}`); }
       }
+    }
+    if (!engine.currentLevel && engine.menuDrift) {
+      // slow orbit around the table while the title screen is up
+      const r = Math.hypot(CAM_DEFAULT.pos.x, CAM_DEFAULT.pos.z), ang = Math.sin(t * 0.08) * 0.35;
+      camera.position.set(Math.sin(ang) * r, CAM_DEFAULT.pos.y + Math.sin(t * 0.13) * 0.25, Math.cos(ang) * r);
+      camera.lookAt(CAM_DEFAULT.target);
     }
     room.update && room.update(dt, t);
     for (const fn of tickFns) { try { fn(dt, t, input); } catch (err) { if (errCount++ < 3) console.error(err); } }
